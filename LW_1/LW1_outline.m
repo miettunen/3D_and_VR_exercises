@@ -76,7 +76,7 @@ rmse = sqrt(err/ptsAlligned.Count);
 %% Task C: Create a function to iteratively allign bunny ptsMoved point cloud  to the reference [mandatory]
 
 %load dataset
-load('bunny.mat')
+load('Supplements/Data and Demos/bunny.mat')
 
 % extract points
 pts=bunny.Location;%reference points
@@ -87,11 +87,11 @@ DownsampleStep=0.0015; % can be changed
 visualize=true;
 
 %Perform ICP
-[bunny_estR,bunny_estt]=ICP();
+[bunny_estR,bunny_estt]=ICP(bunny, bunnyMoved, DownsampleStep);
 
 % Visualize Seperately
-% bunnyAlligned=pointCloud(rigidTransform(ptsMoved,bunny_estR,bunny_estt));
-% figure,pcshowpair(bunny,bunnyAlligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
+bunnyAlligned=pointCloud(rigidTransform(ptsMoved,bunny_estR,bunny_estt));
+figure,pcshowpair(bunny,bunnyAlligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
 
 %% Task D: Add an adaptive Stop Criterion to task C [+1]
 
