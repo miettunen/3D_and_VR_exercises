@@ -15,5 +15,5 @@ function [R, t] = estimateRT_pt2pt(P, P_t)
         R(1) = R(1)*(-1);
     end
     
-    t = (centroid_transformed- centroid_original)*R;
+    t = 
 end

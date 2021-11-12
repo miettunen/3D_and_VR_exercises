@@ -58,7 +58,13 @@ ptsMoved=PointsMoved.Location; % Points to align to reference
 
 % Estimate the transformation [R,t]
 
-% Transform 
+[R,t] = estimateRT_pt2pt(pts, ptsMoved);
+
+% Transform
+
+pts_estimated = rigidTransform(ptsMoved, R, t);
+
+ptsAlligned = pointCloud(pts_estimated);
 
 % Visualize
 figure,pcshowpair(Points,ptsAlligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',200)
