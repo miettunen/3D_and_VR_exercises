@@ -1,6 +1,6 @@
 function [R, t] = estimateRT_pt2pt(P, P_t)
     centroid_original = 1/size(P, 1)*sum(P, 1);
-    centroid_transformed = 1/size(P, 1)*sum(P, 1);
+    centroid_transformed = 1/size(P_t, 1)*sum(P_t, 1);
     
     subtracted_original = P - centroid_original;
     subtracted_transformed = P_t - centroid_transformed;
@@ -15,5 +15,5 @@ function [R, t] = estimateRT_pt2pt(P, P_t)
         R(1) = R(1)*(-1);
     end
     
-    t = (centroid_transformed- centroid_original)*R;
+    t = -(centroid_transformed*R - centroid_original);
 end
