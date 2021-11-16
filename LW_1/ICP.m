@@ -58,7 +58,7 @@ function [converged, R, t, bunny_aligned] = ICP(pts, pts_moved, down_sample_step
             bunny_aligned.Color = slab2.Color;
             pcshow(slab1, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100), hold on;
             pcshow(bunny_aligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100), hold off;
-            title(['Task E.  Press any button for the next iteration!     ', 'Iteration: ', num2str(iter)])
+            title(['Task F.  Press any button for the next iteration!     ', 'Iteration: ', num2str(iter)])
             waitforbuttonpress;
         end
         bunny_estR_old = R_axis_angle;

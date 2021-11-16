@@ -43,7 +43,7 @@ offset=.2;
 hold on, text(Points.Location(:,1)+offset,Points.Location(:,2)+offset ,Points.Location(:,3)+offset,num2str([1:Points.Count]'));
 hold on, text(PointsMoved.Location(:,1)+offset, PointsMoved.Location(:,2)+offset ,PointsMoved.Location(:,3)+offset,num2str([1:PointsMoved.Count]'));
 
-title('Original and Transformed points');
+title('Task A: Original and Transformed points');
 xlabel('X (unit)');
 ylabel('Y (unit)');
 zlabel('Z (unit)');
@@ -70,7 +70,7 @@ ptsAlligned = pointCloud(pts_estimated);
 figure,pcshowpair(Points,ptsAlligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',200)
 hold on, text(Points.Location(:,1),Points.Location(:,2) ,Points.Location(:,3),num2str([1:Points.Count]'))
 hold on, text(ptsAlligned.Location(:,1), ptsAlligned.Location(:,2) ,ptsAlligned.Location(:,3),num2str([1:ptsAlligned.Count]'))
-title('tranformed and merged Point clouds')
+title('Task B: transformed and merged Point clouds')
 
 % Find the error (RMSE)
 err = Points.Location - ptsAlligned.Location;
@@ -137,9 +137,9 @@ iterations = 30;
 Map=FabLabm{starting_image};
 
 %open up a figure to display and update
-f=figure;
+f2=figure;
 hAxes = pcshow(Map, 'VerticalAxis','Y', 'VerticalAxisDir', 'Down');
-title('Stiched Scene');
+
 
 % Set the axes property for faster rendering
 hAxes.CameraViewAngleMode = 'auto';
@@ -185,10 +185,11 @@ for i = starting_image+1:length(FabLabm)
     hScatter.YData = Map.Location(:,2);
     hScatter.ZData = Map.Location(:,3);
     hScatter.CData = Map.Color;
+    title(['Task E ', 'ptClouds stitched: ', num2str(i)])
     drawnow('limitrate')
 
 end
-    figure(f)
+    figure(f2)
     
 %% Task F: Create a function to iteratively alligns bunny ptsMoved based on distance and colour [+1]
 
@@ -202,12 +203,12 @@ ptsMoved=slab2.Location; %Points to align to reference
 % Set parameters
 DownsampleStep=0.1;
 tolerance=[0.001, 0.005];
-iterations = 25;
+iterations = 100;
 
 % For testing here, we donot use colour as input. The default distance based ICP is used
 useColour=false;
 visualize=false;
-[~, ~, ~, slab_aligned]=ICP(pts, ptsMoved, DownsampleStep, iterations, visualize, tolerance, useColour, 0, 0); % colour input only used for visualization
+[converged, ~, ~, slab_aligned]=ICP(pts, ptsMoved, DownsampleStep, iterations, visualize, tolerance, useColour, 0, 0); % colour input only used for visualization
 slab_aligned.Color = slab2.Color;
 figure, hold on, pcshow(slab1, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
 pcshow(slab_aligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100), hold off;
@@ -221,8 +222,21 @@ slab_aligned.Color = slab2.Color;
 if visualize == false
     figure, hold on, pcshow(slab1, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
     pcshow(slab_aligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100), hold off;
-    title(['Task E. Slabs aligned with color assistance.   Converged on iteration: ', num2str(converged)])
+    title(['Task F. Slabs aligned with color assistance.   Converged on iteration: ', num2str(converged)])
 end
+
+% i ) Pros and cons of ICP vs other registrations methods:
+
+% Pros:
+% - Intuitive and easy to implement
+
+% Cons:
+% - Converges slowly
+% - Sensitive to outliers, missing data and partial overlaps
+
+% ii) How to make ICP robust to noise:
+
+% - Sparse ICP improves robustness via sparsity optimization at the cost of computational speed
 
 
 
@@ -241,7 +255,7 @@ useColour=false;
 visualize=true;
 
 % compare the convergence both metrics in terms of iterations and final error
-[bunny_estR,bunny_estt,err_pt]=ICP(); % point-to-point method
-[bunny_estR,bunny_estt,err_pl]=ICP(); % point-to-plane method
+%[bunny_estR,bunny_estt,err_pt]=ICP(); % point-to-point method
+%[bunny_estR,bunny_estt,err_pl]=ICP(); % point-to-plane method
 
 

@@ -4,7 +4,7 @@ function [converged, R, t, bunny_aligned] = ICP(pts, pts_moved, down_sample_step
     bunny_estt_old = zeros(3);
 
     if use_colours
-        alpha = 0.4;
+        alpha = 0.2;
         slab1_ds = pcdownsample(slab1, 'random', down_sample_step);
         slab2_ds = pcdownsample(slab2, 'random', down_sample_step);
     end
@@ -51,15 +51,15 @@ function [converged, R, t, bunny_aligned] = ICP(pts, pts_moved, down_sample_step
         
         if visualize && use_colours == false
             pcshowpair(pointCloud(pts), bunny_aligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
-            title(['Task C.  Press any button for the next iteration!     ', 'Iteration: ', num2str(iter)])
-            waitforbuttonpress;
+            title(['Task C ', 'Iteration: ', num2str(iter)])
+            drawnow('limitrate')
         end
         if use_colours
-            bunny_aligned.Color = slab2.Color
+            bunny_aligned.Color = slab2.Color;
             pcshow(slab1, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100), hold on;
             pcshow(bunny_aligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100), hold off;
-            title(['Task E.  Press any button for the next iteration!     ', 'Iteration: ', num2str(iter)])
-            waitforbuttonpress;
+            title(['Task F ', 'Iteration: ', num2str(iter)])
+            drawnow('limitrate')
         end
         bunny_estR_old = R_axis_angle;
         bunny_estt_old = bunny_estt;
