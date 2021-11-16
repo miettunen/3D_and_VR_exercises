@@ -81,7 +81,7 @@ rmse = sqrt(err/ptsAlligned.Count);
 
 %% Task C: Create a function to iteratively allign bunny ptsMoved point cloud  to the reference [mandatory]
 %load dataset
-load('Supplements/Data and Demos/bunny.mat')
+load('bunny.mat')
 iterations = 30;
 
 % extract points
@@ -93,51 +93,30 @@ DownsampleStep=0.3; % can be changed
 visualize=true;
 
 %Perform ICP
-[bunny_estR,bunny_estt, bunny_aligned]=ICP(pts, ptsMoved, DownsampleStep, iterations, visualize);
+[converged, bunny_aligned]=ICP(pts, ptsMoved, DownsampleStep, iterations, visualize, [0.001 0.5], false, 0, 0);
 
 
 %% Task D: Add an adaptive Stop Criterion to task C [+1]
 
 %load dataset
-load('Supplements/Data and Demos/bunny.mat')
+load('bunny.mat')
 
 % extract points
 pts=bunny.Location;%reference points
 ptsMoved=bunnyMoved.Location; %Points to align to reference
 
 % Set parameters
-DownsampleStep=0.0015; % can be changed
-tolerance=[0.1, 0.1];  % can be changed
-visualize=true;
+DownsampleStep=0.01; % can be changed
+tolerance=[0.001, 0.005];  % can be changed
+visualize=false;
+iterations = 5000;
+     
+%Perform ICP
+[converged, bunny_aligned]=ICP(pts, ptsMoved, DownsampleStep, iterations, visualize, tolerance, false, 0, 0);
 
-iterations = 1000;
-consecutive_criterion = 0;
-bunny_estR_old = zeros(3,3);
-bunny_estt_old = zeros(3);
 
-bunnyAlligned = pointCloud([0, 0, 0]);
-for iter = 1:iterations
-    
-    %Perform ICP
-    [bunny_estR_new,bunny_estt_new]=ICP(pts, ptsMoved, DownsampleStep);
-    sum(abs(bunny_estR_new - bunny_estR_old), 'all')
-    if sum(abs(bunny_estR_new - bunny_estR_old), 'all') < tolerance(1) && sum(abs(bunny_estt_new - bunny_estt_old), 'all') < tolerance(2)
-        consecutive_criterion = consecutive_criterion + 1;
-    else
-        consecutive_criterion = 0;
-    end
-    bunnyAlligned=pointCloud(rigidTransform(ptsMoved, bunny_estR_new, bunny_estt_new));
-    if consecutive_criterion == 3
-        break
-    end
-
-    ptsMoved = bunnyAlligned.Location;
-    bunny_estR_old = bunny_estR_new;
-    bunny_estt_old = bunny_estt_new;
-end
-
-figure, pcshowpair(bunny,bunnyAlligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
-title(['Converged on the iteration ', num2str(iter)])
+figure, pcshowpair(bunny,bunny_aligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
+title(['Task D.  Converged on iteration: ', num2str(converged)])
 
 
 
@@ -213,18 +192,27 @@ pts=slab1.Location;%reference points
 ptsMoved=slab2.Location; %Points to align to reference
 
 % Set parameters
-DownsampleStep=0.3;
-tolerance=[0.001, 0.001];
-visualize=true;
+DownsampleStep=0.1;
+tolerance=[0.001, 0.005];
+iterations = 25;
 
 % For testing here, we donot use colour as input. The default distance based ICP is used
 useColour=false;
-[slab_estR,slab_estt]=ICP(); % colour input only used for visualization
+visualize=false;
+[~, slab_aligned]=ICP(pts, ptsMoved, DownsampleStep, iterations, visualize, tolerance, useColour, 0, 0); % colour input only used for visualization
+slab_aligned.Color = slab2.Color;
+figure, hold on, pcshow(slab1, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
+pcshow(slab_aligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100), hold off;
+title(['Slabs aligned without color assistance.   Converged on iteration: ', num2str(converged)])
 
 % Use colour assisted ICP
 useColour=true;
-[slab_estR,slab_estt]=ICP();% colour used both for visualization and estimation
-
+visualize = true;
+[converged, slab_aligned] = ICP(pts, ptsMoved, DownsampleStep, iterations, visualize, tolerance, useColour, slab1, slab2);% colour used both for visualization and estimation
+slab_aligned.Color = slab2.Color;
+figure, hold on, pcshow(slab1, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
+pcshow(slab_aligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100), hold off;
+title(['Task E. Slabs aligned with color assistance.   Converged on iteration: ', num2str(converged)])
 
 %% Task G: Create a function to iteratively allign  bunny ptsMoved using point-2-plane metric [+1]
 %load dataset
