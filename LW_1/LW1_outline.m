@@ -91,19 +91,9 @@ ptsMoved = bunnyMoved.Location;
 % Set parameters
 DownsampleStep=0.3; % can be changed
 visualize=true;
-figure;
-for iter = 1:iterations
-    %Perform ICP
-    [bunny_estR,bunny_estt]=ICP(pts, ptsMoved, DownsampleStep);
-    
-    % Visualize Seperately
-    bunnyAlligned=pointCloud(rigidTransform(ptsMoved,bunny_estR,bunny_estt));
-    pcshowpair(bunny,bunnyAlligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
-    title(['Press any button for the next iteration!     ', 'Iteration: ', num2str(iter)])
-    ptsMoved = bunnyAlligned.Location;
-    waitforbuttonpress;
-    
-end
+
+%Perform ICP
+[bunny_estR,bunny_estt, bunny_aligned]=ICP(pts, ptsMoved, DownsampleStep, iterations, visualize);
 
 
 %% Task D: Add an adaptive Stop Criterion to task C [+1]
