@@ -1,4 +1,4 @@
-function [converged, bunny_aligned] = ICP(pts, pts_moved, down_sample_step, iters, visualize, tolerance, use_colours, slab1, slab2)
+function [converged, R, t, bunny_aligned] = ICP(pts, pts_moved, down_sample_step, iters, visualize, tolerance, use_colours, slab1, slab2)
     consecutive_criterion = 0;
     bunny_estR_old = vrrotmat2vec(zeros(3,3));
     bunny_estt_old = zeros(3);
@@ -42,6 +42,8 @@ function [converged, bunny_aligned] = ICP(pts, pts_moved, down_sample_step, iter
         end
     
         bunny_aligned = pointCloud(rigidTransform(pts_moved, bunny_estR, bunny_estt));
+        R = bunny_estR;
+        t = bunny_estt;
         if consecutive_criterion == 3
             converged = iter;
             return;
@@ -53,7 +55,7 @@ function [converged, bunny_aligned] = ICP(pts, pts_moved, down_sample_step, iter
             waitforbuttonpress;
         end
         if use_colours
-            bunny_aligned.Color = slab2.Color
+            bunny_aligned.Color = slab2.Color;
             pcshow(slab1, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100), hold on;
             pcshow(bunny_aligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100), hold off;
             title(['Task E.  Press any button for the next iteration!     ', 'Iteration: ', num2str(iter)])
