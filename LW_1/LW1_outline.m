@@ -80,6 +80,33 @@ rmse = sqrt(err/ptsAlligned.Count);
 
 
 %% Task C: Create a function to iteratively allign bunny ptsMoved point cloud  to the reference [mandatory]
+%load dataset
+load('Supplements/Data and Demos/bunny.mat')
+iterations = 30;
+
+% extract points
+pts = bunny.Location;
+ptsMoved = bunnyMoved.Location;
+
+% Set parameters
+DownsampleStep=0.3; % can be changed
+visualize=true;
+figure;
+for iter = 1:iterations
+    %Perform ICP
+    [bunny_estR,bunny_estt]=ICP(pts, ptsMoved, DownsampleStep);
+    
+    % Visualize Seperately
+    bunnyAlligned=pointCloud(rigidTransform(ptsMoved,bunny_estR,bunny_estt));
+    pcshowpair(bunny,bunnyAlligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
+    title(['Press any button for the next iteration!     ', 'Iteration: ', num2str(iter)])
+    ptsMoved = bunnyAlligned.Location;
+    waitforbuttonpress;
+    
+end
+
+
+%% Task D: Add an adaptive Stop Criterion to task C [+1]
 
 %load dataset
 load('Supplements/Data and Demos/bunny.mat')
@@ -90,35 +117,38 @@ ptsMoved=bunnyMoved.Location; %Points to align to reference
 
 % Set parameters
 DownsampleStep=0.0015; % can be changed
+tolerance=[0.1, 0.1];  % can be changed
 visualize=true;
 
-%Perform ICP
-[bunny_estR,bunny_estt]=ICP(bunny, bunnyMoved, DownsampleStep);
+iterations = 1000;
+consecutive_criterion = 0;
+bunny_estR_old = zeros(3,3);
+bunny_estt_old = zeros(3);
 
-% Visualize Seperately
-bunnyAlligned=pointCloud(rigidTransform(ptsMoved,bunny_estR,bunny_estt));
-figure,pcshowpair(bunny,bunnyAlligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
+bunnyAlligned = pointCloud([0, 0, 0]);
+for iter = 1:iterations
+    
+    %Perform ICP
+    [bunny_estR_new,bunny_estt_new]=ICP(pts, ptsMoved, DownsampleStep);
+    sum(abs(bunny_estR_new - bunny_estR_old), 'all')
+    if sum(abs(bunny_estR_new - bunny_estR_old), 'all') < tolerance(1) && sum(abs(bunny_estt_new - bunny_estt_old), 'all') < tolerance(2)
+        consecutive_criterion = consecutive_criterion + 1;
+    else
+        consecutive_criterion = 0;
+    end
+    bunnyAlligned=pointCloud(rigidTransform(ptsMoved, bunny_estR_new, bunny_estt_new));
+    if consecutive_criterion == 3
+        break
+    end
 
-%% Task D: Add an adaptive Stop Criterion to task C [+1]
+    ptsMoved = bunnyAlligned.Location;
+    bunny_estR_old = bunny_estR_new;
+    bunny_estt_old = bunny_estt_new;
+end
 
-%load dataset
-load('bunny.mat')
+figure, pcshowpair(bunny,bunnyAlligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
+title(['Converged on the iteration ', num2str(iter)])
 
-% extract points
-pts=bunny.Location;%reference points
-ptsMoved=bunnyMoved.Location; %Points to align to reference
-
-% Set parameters
-DownsampleStep=0.0015; % can be changed
-tolerance=[0.001, 0.001];  % can be changed
-visualize=true;
-
-%Perform ICP
-[bunny_estR,bunny_estt]=ICP();
-
-% Visualize Seperately
-% bunnyAlligned=pointCloud(rigidTransform(ptsMoved,bunny_estR,bunny_estt));
-% figure,pcshowpair(bunny,bunnyAlligned, 'VerticalAxis','Y', 'VerticalAxisDir', 'down','MarkerSize',100)
 
 
 %% Task E:	Registration and Stitching of multiple Point Clouds [+1]
