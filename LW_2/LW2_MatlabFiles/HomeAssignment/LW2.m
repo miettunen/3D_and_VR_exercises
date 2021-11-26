@@ -40,12 +40,13 @@ load synthdata
 %LW2_Demo
 %% Task 1: Plotting global point cloud (8 lines of code)
 % Back projection from PMD image plane to global space
+figure;
 subplot(2,1,1), imshow(Image);
 subplot(2,1,2), imshow(Depth, []);
 
 
 [u,v] = meshgrid(1:size(Depth,2), 1:size(Depth,1));
-figure;
+
 
 u_center = u - max(u, [], 'all')/2;
 v_center = v - max(v, [], 'all')/2;
@@ -96,8 +97,9 @@ drawnow;
 
 
 F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
-z_colorcam_reg = F.Values;
-z_colorcam_reg = reshape(z_colorcam_reg, [480, 640]);
+z_colorcam_reg = F(u', v');
+z_colorcam_reg = reshape(z_colorcam_reg, [640, 480])';
+
 % Plotting
 figure;
 subplot( 131); imshow( Image, []); title('Task 3: Original color image')
@@ -126,8 +128,13 @@ edgeRemoval(h);
 
 
 %% Task 6: Color resampling (4 lines of code)
+[u_color,v_color] = meshgrid(1:size(Image,2), 1:size(Image,1));
+colors = interp2(u_colorcam', v_colorcam', reshape(Image, [307200, 1 ,3]), u_color', v_color');
+colors = reshape(colors, [480, 640]);
 
-
+F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
+z_colorcam_reg = F(u', v');
+z_colorcam_reg = reshape(z_colorcam_reg, [640, 480])';
 
 % Plotting
 figure; 
