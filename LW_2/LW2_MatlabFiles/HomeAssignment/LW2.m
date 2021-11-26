@@ -75,8 +75,10 @@ axis equal
 drawnow;
 %% Task 2: Projection to color camera image plane (5 lines of code)
 
-
-
+X_proj = R*X + T;
+u_colorcam = ((Cparam.fx/Cparam.pixelsize)*(X_proj(1,:))./X_proj(3,:))+Cparam.cx;
+v_colorcam = ((Cparam.fy/Cparam.pixelsize)*(X_proj(2,:))./X_proj(3,:))+Cparam.cy;
+z_colorcam = X_proj(3,:);
 
 % Plotting
 figure; axis equal
@@ -93,8 +95,9 @@ drawnow;
 %% Task 3: Resampling projected data (3 lines of code)
 
 
-
-
+F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
+z_colorcam_reg = F.Values;
+z_colorcam_reg = reshape(z_colorcam_reg, [480, 640]);
 % Plotting
 figure;
 subplot( 131); imshow( Image, []); title('Task 3: Original color image')
