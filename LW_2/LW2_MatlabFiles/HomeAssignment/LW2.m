@@ -21,6 +21,9 @@
 % easier way to do it.
 %--------------------------------------------------------------------------
 
+clear;
+clc;
+
 % Load synthetic data:
 load synthdata
 
@@ -34,11 +37,12 @@ load synthdata
 %Image = imread('./Colour_rect.tif');
 %Depth = imread('./Depth_rect.tif');
 
+%LW2_Demo
 %% Task 1: Plotting global point cloud (8 lines of code)
 % Back projection from PMD image plane to global space
 subplot(2,1,1), imshow(Image);
 subplot(2,1,2), imshow(Depth, []);
-%LW2_Demo
+
 
 [u,v] = meshgrid(1:size(Depth,2), 1:size(Depth,1));
 figure;
@@ -46,26 +50,21 @@ figure;
 u_center = u - max(u, [], 'all')/2;
 v_center = v - max(v, [], 'all')/2;
 
-Depth = (Dparam.fx*Depth)./(Dparam.fx^2+u_center.^2+v_center.^2).^(1/2);
-mesh(u,v,Depth)
-%Depth = Depth / 10000;
-x = (u*Dparam.pixelsize - (Dparam.cx * Dparam.pixelsize)) / (Dparam.fx) .* Depth;
-y = (v*Dparam.pixelsize - (Dparam.cy * Dparam.pixelsize)) / (Dparam.fy) .* Depth;
+z =((Dparam.f/Dparam.pixelsize)*Depth)./sqrt((Dparam.f/Dparam.pixelsize)^2+u_center.^2+v_center.^2);
+%mesh(u,v,z)
+x = (z.*(u_center))/(Dparam.fx/Dparam.pixelsize);
+y = (z.*(v_center))/(Dparam.fy/Dparam.pixelsize);
 
+min(z, [], 'all');
 
 x = reshape(x.', 1, []);
 y = reshape(y.', 1, []);
-Depth = reshape(Depth.', 1, []);
-max(Depth)
-min(Depth)
-
-
-X = [x y Depth];
+z = reshape(z.', 1, []);
+X = [x;y;z];
 
 % Plotting
 figure; hold on;
-scatter3(x, y, Depth, 10, Depth);
-%scatter3(X(1, :), X(2, :), X(3, :), 10, X(3, :));
+scatter3(X(1, :), X(2, :), X(3, :), 10, X(3, :));
 colormap jet; colorbar;
 scatter3(0, 0, 0, 500, 'gx', 'LineWidth', 2)
 title('Task 1: Point cloud in global (x,y,z) space');
