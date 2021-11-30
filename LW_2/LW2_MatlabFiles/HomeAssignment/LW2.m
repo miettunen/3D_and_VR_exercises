@@ -9,7 +9,7 @@
 % Fill out the information below
 %
 % Group members: Antti-Jussi Mäkipää & Teemu Miettunen
-% Additional tasks completed (5, 6, 7, 8):
+% Additional tasks completed (5, 6, 7, 8): 5,6
 %
 % Fill in your implementation at the assigned slots. You can use the 
 % existing drawing scripts or draw your own figures. 
@@ -25,8 +25,8 @@ clear;
 clc;
 
 % Switching between real and synthetic data
-% use_synthdata = false;
-use_synthdata = true;
+use_synthdata = false;
+%use_synthdata = true;
 
 if use_synthdata
     % Load synthetic data:
@@ -140,8 +140,8 @@ subplot( 133); imshowpair( Image, z_colorcam_reg); title('Task 3: Resampled dept
 %% Task 4: Visualizing combined depth/color data
 
 % Well, actually, this one is just plotting so you're done already
-figure; 
-surf(z_colorcam_reg, double(Image), 'EdgeColor', 'none')
+figure; colorbar;
+surf(z_colorcam_reg, Image, 'EdgeColor', 'none')
 set(gca,'ZDir','reverse');
 set(gca,'YDir','reverse');
 title( 'Task 4: 3D mesh generated from resampled depth')
@@ -151,7 +151,7 @@ drawnow;
 
 % Just plotting here, add your implementation to the edgeRemoval.h function
 figure; 
-h = surf(z_colorcam_reg, double(Image), 'EdgeColor', 'none');
+h = surf(z_colorcam_reg, Image, 'EdgeColor', 'none');
 set(gca,'ZDir','reverse');
 set(gca,'YDir','reverse');
 title( 'Task 5: 3D mesh generated from resampled depth with edge artifacts removed')
@@ -202,7 +202,7 @@ drawnow;
 
 
 
-
+%{
 
 % Plotting
 figure;
@@ -274,5 +274,5 @@ drawnow;
 
 
 
-
+%}
 
