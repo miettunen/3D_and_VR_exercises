@@ -37,7 +37,7 @@ load synthdata
 %Image = imread('./Colour_rect.tif');
 %Depth = imread('./Depth_rect.tif');
 
-%LW2_Demo
+% LW2_Demo
 %% Task 1: Plotting global point cloud (8 lines of code)
 % Back projection from PMD image plane to global space
 figure;
@@ -96,6 +96,8 @@ drawnow;
 %% Task 3: Resampling projected data (3 lines of code)
 
 
+
+
 F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
 z_colorcam_reg = F(u', v');
 z_colorcam_reg = reshape(z_colorcam_reg, [640, 480])';
@@ -128,13 +130,17 @@ edgeRemoval(h);
 
 
 %% Task 6: Color resampling (4 lines of code)
-[u_color,v_color] = meshgrid(1:size(Image,2), 1:size(Image,1));
-colors = interp2(u_colorcam', v_colorcam', reshape(Image, [307200, 1 ,3]), u_color', v_color');
-colors = reshape(colors, [480, 640]);
 
-F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
-z_colorcam_reg = F(u', v');
-z_colorcam_reg = reshape(z_colorcam_reg, [640, 480])';
+u_something = reshape(u_colorcam, [640,480])';
+v_something = reshape(v_colorcam, [640,480])';
+
+red_ch = interp2(u, v, Image(:,:,1), u_something, v_something,'nearest');
+green_ch = interp2(u, v, Image(:,:,2), u_something, v_something,'nearest');
+blue_ch = interp2(u, v, Image(:,:,3), u_something, v_something,'nearest');
+
+
+resampledColorImage = cat(3, red_ch, green_ch, blue_ch);
+z_something = reshape(z_colorcam, [640,480])';
 
 % Plotting
 figure; 
@@ -144,8 +150,8 @@ subplot( 232); imshow( z_colorcam_reg, []); title('Task 3: Resampled depth image
 subplot( 233); imshowpair( Image, z_colorcam_reg); title('Task 3: Resampled depth on original color')
 
 subplot( 234); imshow( resampledColorImage, []); title('Task 6: Resampled color image')
-subplot( 235); imshow( z, []); title('Task 6: Original depth image');
-subplot( 236); imshowpair( resampledColorImage, z); title('Task 6: Resampled color on original depth')
+subplot( 235); imshow( z_something, []); title('Task 6: Original depth image');
+subplot( 236); imshowpair( resampledColorImage, z_something); title('Task 6: Resampled color on original depth')
 drawnow;
 
 
