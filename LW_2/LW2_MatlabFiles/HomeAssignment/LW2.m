@@ -24,18 +24,29 @@
 clear;
 clc;
 
-% Load synthetic data:
-load synthdata
+% Switching between real and synthetic data
+% use_synthdata = false;
+use_synthdata = true;
 
-% Load real data:
-%   .Depth from Kinect is in "mm";
-%   .Translation vector is in "mm";
-%   .Intrinsic parameters are in "pixels";
-  
-% load KinectData.mat
-%kinect_data = load('./KinectData.mat');
-%Image = imread('./Colour_rect.tif');
-%Depth = imread('./Depth_rect.tif');
+if use_synthdata
+    % Load synthetic data:
+    load synthdata
+    
+else
+    % Load real data:
+    %   .Depth from Kinect is in "mm";
+    %   .Translation vector is in "mm";
+    %   .Intrinsic parameters are in "pixels";
+
+    % load KinectData.mat
+    kinect_data = load('./KinectData.mat');
+    Image = imread('./Colour_rect.tif');
+    Depth = imread('./Depth_rect.tif');
+
+    % pixel sizes pulled from the internet
+    pixel_size_rgb = 3.1*10^(-6);
+    pixel_size_d = 10*10^(-6);
+end
 
 % LW2_Demo
 %% Task 1: Plotting global point cloud (8 lines of code)
@@ -51,12 +62,16 @@ subplot(2,1,2), imshow(Depth, []);
 u_center = u - max(u, [], 'all')/2;
 v_center = v - max(v, [], 'all')/2;
 
-z =((Dparam.f/Dparam.pixelsize)*Depth)./sqrt((Dparam.f/Dparam.pixelsize)^2+u_center.^2+v_center.^2);
-%mesh(u,v,z)
-x = (z.*(u_center))/(Dparam.fx/Dparam.pixelsize);
-y = (z.*(v_center))/(Dparam.fy/Dparam.pixelsize);
 
-min(z, [], 'all');
+if use_synthdata
+    z =((Dparam.f/Dparam.pixelsize)*Depth)./sqrt((Dparam.f/Dparam.pixelsize)^2+u_center.^2+v_center.^2);
+    x = (z.*(u_center))/(Dparam.fx/Dparam.pixelsize);
+    y = (z.*(v_center))/(Dparam.fy/Dparam.pixelsize);
+else
+    z = double(Depth) * 10^(-3) / pixel_size_d;
+    x = (z.*(u_center))/kinect_data.Dparam.fx;
+    y = (z.*(v_center))/kinect_data.Dparam.fy;
+end
 
 x = reshape(x.', 1, []);
 y = reshape(y.', 1, []);
@@ -76,10 +91,17 @@ axis equal
 drawnow;
 %% Task 2: Projection to color camera image plane (5 lines of code)
 
-X_proj = R*X + T;
-u_colorcam = ((Cparam.fx/Cparam.pixelsize)*(X_proj(1,:))./X_proj(3,:))+Cparam.cx;
-v_colorcam = ((Cparam.fy/Cparam.pixelsize)*(X_proj(2,:))./X_proj(3,:))+Cparam.cy;
-z_colorcam = X_proj(3,:);
+if use_synthdata
+    X_proj = R*X + T;
+    u_colorcam = ((Cparam.fx/Cparam.pixelsize)*(X_proj(1,:))./X_proj(3,:))+Cparam.cx;
+    v_colorcam = ((Cparam.fy/Cparam.pixelsize)*(X_proj(2,:))./X_proj(3,:))+Cparam.cy;
+    z_colorcam = X_proj(3,:);
+else
+    X_proj = kinect_data.R*X + kinect_data.T* 10^(-3) / pixel_size_d;
+    u_colorcam = (kinect_data.Cparam.fx*(X_proj(1,:))./X_proj(3,:))+kinect_data.Cparam.cx;
+    v_colorcam = (kinect_data.Cparam.fy*(X_proj(2,:))./X_proj(3,:))+kinect_data.Cparam.cy;
+    z_colorcam = X_proj(3,:);
+end    
 
 % Plotting
 figure; axis equal
@@ -97,10 +119,17 @@ drawnow;
 
 
 
-
-F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
-z_colorcam_reg = F(u', v');
-z_colorcam_reg = reshape(z_colorcam_reg, [640, 480])';
+if use_synthdata
+    F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
+    z_colorcam_reg = F(u', v');
+    z_colorcam_reg = reshape(z_colorcam_reg, [640, 480])';
+else
+    [u2,v2] = meshgrid(1:size(Image,2), 1:size(Image,1));
+    
+    F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
+    z_colorcam_reg = F(u2', v2');
+    z_colorcam_reg = reshape(z_colorcam_reg, [1920, 1080])';
+end
 
 % Plotting
 figure;
@@ -131,16 +160,29 @@ edgeRemoval(h);
 
 %% Task 6: Color resampling (4 lines of code)
 
-u_something = reshape(u_colorcam, [640,480])';
-v_something = reshape(v_colorcam, [640,480])';
+if use_synthdata
+    u_something = reshape(u_colorcam, [640,480])';
+    v_something = reshape(v_colorcam, [640,480])';
 
-red_ch = interp2(u, v, Image(:,:,1), u_something, v_something,'nearest');
-green_ch = interp2(u, v, Image(:,:,2), u_something, v_something,'nearest');
-blue_ch = interp2(u, v, Image(:,:,3), u_something, v_something,'nearest');
+    red_ch = interp2(u, v, Image(:,:,1), u_something, v_something,'nearest');
+    green_ch = interp2(u, v, Image(:,:,2), u_something, v_something,'nearest');
+    blue_ch = interp2(u, v, Image(:,:,3), u_something, v_something,'nearest');
 
 
-resampledColorImage = cat(3, red_ch, green_ch, blue_ch);
-z_something = reshape(z_colorcam, [640,480])';
+    resampledColorImage = cat(3, red_ch, green_ch, blue_ch);
+    z_something = reshape(z_colorcam, [640,480])';
+else
+    u_something = reshape(u_colorcam, [512, 424])';
+    v_something = reshape(v_colorcam, [512, 424])';
+
+    red_ch = interp2(u2, v2, Image(:,:,1), u_something, v_something,'nearest');
+    green_ch = interp2(u2, v2, Image(:,:,2), u_something, v_something,'nearest');
+    blue_ch = interp2(u2, v2, Image(:,:,3), u_something, v_something,'nearest');
+
+
+    resampledColorImage = cat(3, red_ch, green_ch, blue_ch);
+    z_something = reshape(z_colorcam, [512,424])';
+end    
 
 % Plotting
 figure; 
