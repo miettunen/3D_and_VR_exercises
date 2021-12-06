@@ -11,39 +11,57 @@
 %
 % The tracking system and image rendering should run in real-time (> 1 fps)
 %--------------------------------------------------------------------------
+%% 
+clear;
+LW3_Demo
 %% Model creation - Task 2.1
 
+% points = [0,0,0; 1,0,0; 0,1,0; 0,0,1; 1,1,0; 1,0,1; 0,1,1; 1,1,1]
+%             1       2     3      4      5       6     7      8
 % Define model (cube):
 cube = [];
 
-cube.vertices = [; ...    %X
-                 ; ...    %Y
-                 ];       %Z
+cube.vertices = [0 1 0 0 1 1 0 1; ...    %X
+                 0 0 1 0 1 0 1 1; ...    %Y
+                 0 0 0 1 0 1 1 1];       %Z
 
-cube.connectivity = [; ... 
-                     ; ...
-                     ]; 
+cube.connectivity = [1 5 1 6 1 7, 2 8 3 8 4 8; ... 
+                     2 2 2 2 3 3, 5 5 5 5 6 6; ...
+                     3 3 4 4 4 4, 6 6 7 7 7 7]; 
 
-cube.color = [; ... %R
-              ; ... %G
-              ];    %B 
+cube.color = [rand rand rand rand rand rand rand rand rand rand rand rand; ... %R
+              rand rand rand rand rand rand rand rand rand rand rand rand; ... %G
+              rand rand rand rand rand rand rand rand rand rand rand rand];    %B 
 
 %Transform the model:          
 model1 = cube;
 %Scale factor
-scale = 1;
+scale = 0.1;
 %Rotation matrix
-rotation = rotX(0) * rotY(0) * rotZ(0);
+rotation = rotX(34) * rotY(256) * rotZ(163);
 %Translation vector
-translation = [0,0,0];
+translation = [0, 0, 0.5];
 %Apply transformations
 model1.vertices = model1.vertices .* scale;
 model1.vertices = rotation * model1.vertices;
 model1.vertices = model1.vertices + translation';
 
+% %Transform the model:          
+% model2 = cube;
+% %Scale factor
+% scale = 0.4;
+% %Rotation matrix
+% rotation = rotX(6657457) * rotY(5468) * rotZ(25564);
+% %Translation vector
+% translation = [0, 0, 1.5];
+% %Apply transformations
+% model2.vertices = model2.vertices .* scale;
+% model2.vertices = rotation * model2.vertices;
+% model2.vertices = model2.vertices + translation';
+
 
 %The scene
-scene = {model1, model2, model3};
+scene = {model1};
 
 %Draw scene, triangle-by-triangle
 figure(1), cla;
@@ -74,23 +92,28 @@ xlabel('X [m]'); ylabel('Y [m]'); zlabel('Z [m]');
 
 %% Perspective projection - Task 2.2
 
+screen_size = [0.527, 0.296];
+screen_res = [1920 1080];
+pixel_size = [screen_size(1)/screen_res(1) screen_size(1)/screen_res(1)];
+dist_from_screen = 0.6;
+
 %Screen properties:
 screen = [];
 %Resolution (native resolution)
-screen.res = [0, 0]; % [u,v]
+screen.res = screen_res; % [u,v]
 %Screen's pixel size - force pixel to be square!  
-screen.pixelSize = [ 0, 0]; % [x,y]
+screen.pixelSize = pixel_size; % [x,y]
 %Screen physical size (in meters)
-screen.physicalSize = [ 0, 0]; % [x,y]
+screen.physicalSize = screen_size; % [x,y]
 %Screen 3D coordinates
-screen.coord3D = [; ... %X 
-                  ; ... %Y
-                  ];    %Z
+screen.coord3D = [-screen_size(1)/2, screen_size(1)/2 screen_size(1)/2 -screen_size(1)/2 ; ... %X 
+                  0 0 screen_size(2) screen_size(2); ... %Y
+                  0 0 0 0];    %Z
 
 %Screen f (distance from viewer to screen)
-screen.f = [ 0, 0]; % [fx,fy]
+screen.f = [dist_from_screen/pixel_size(1), dist_from_screen/pixel_size(2)]; % [fx,fy]
 %Screen principal point
-screen.pp = [ 0, 0]; %[cx, cy]
+screen.pp = [ screen_res(1)/2, screen_res(2)/2]; %[cx, cy]
 %Screen intrinsic parameters matrix
 screen.K = [screen.f(1), 0, screen.pp(1); ...
            0, screen.f(2), screen.pp(2); ...
@@ -101,11 +124,14 @@ screen.uv = cell([1, length(scene)]);
 %Viewer properties:       
 viewer = [];
 %Viewer's pose
-viewer.Location = [ 0, 0, 0]; % [X,Y,Z]
+viewer.Location = [ 0, screen_size(2)/2, -dist_from_screen]; % [X,Y,Z]
 viewer.Orientation = rotX(0) * rotY(0) * rotZ(0); % Identity matrix => eye(3) 
 %Viewer's extrinsic parameters
-viewer.R = 0;
-viewer.T = 0;   
+viewer.R = eye(3);
+viewer.T = [0 0 0];
+
+XYZ = scene{1}.vertices;
+uv = Project3DTo2D(XYZ, screen.K, viewer.R, viewer.T);
 
 for(k=1:length(scene))
     
@@ -163,8 +189,8 @@ for(k=1:length(scene))
     end
     title('Perspective projection - Task 2.2');
     axis image;
-    xlim([0,0]);
-    ylim([0,0]);
+    xlim([0,screen_res(1)]);
+    ylim([0,screen_res(2)]);
     
 end
 
