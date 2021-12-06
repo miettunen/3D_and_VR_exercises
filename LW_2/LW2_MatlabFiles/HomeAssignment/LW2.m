@@ -9,7 +9,7 @@
 % Fill out the information below
 %
 % Group members: Antti-Jussi Mäkipää & Teemu Miettunen
-% Additional tasks completed (5, 6, 7, 8):
+% Additional tasks completed (5, 6, 7, 8): 5,6
 %
 % Fill in your implementation at the assigned slots. You can use the 
 % existing drawing scripts or draw your own figures. 
@@ -24,20 +24,31 @@
 clear;
 clc;
 
-% Load synthetic data:
-load synthdata
+% Switching between real and synthetic data
+use_synthdata = false;
+%use_synthdata = true;
 
-% Load real data:
-%   .Depth from Kinect is in "mm";
-%   .Translation vector is in "mm";
-%   .Intrinsic parameters are in "pixels";
-  
-% load KinectData.mat
-%kinect_data = load('./KinectData.mat');
-%Image = imread('./Colour_rect.tif');
-%Depth = imread('./Depth_rect.tif');
+if use_synthdata
+    % Load synthetic data:
+    load synthdata
+    
+else
+    % Load real data:
+    %   .Depth from Kinect is in "mm";
+    %   .Translation vector is in "mm";
+    %   .Intrinsic parameters are in "pixels";
 
-%LW2_Demo
+    % load KinectData.mat
+    kinect_data = load('./KinectData.mat');
+    Image = imread('./Colour_rect.tif');
+    Depth = imread('./Depth_rect.tif');
+
+    % pixel sizes pulled from the internet
+    pixel_size_rgb = 3.1*10^(-6);
+    pixel_size_d = 10*10^(-6);
+end
+
+% LW2_Demo
 %% Task 1: Plotting global point cloud (8 lines of code)
 % Back projection from PMD image plane to global space
 figure;
@@ -51,12 +62,16 @@ subplot(2,1,2), imshow(Depth, []);
 u_center = u - max(u, [], 'all')/2;
 v_center = v - max(v, [], 'all')/2;
 
-z =((Dparam.f/Dparam.pixelsize)*Depth)./sqrt((Dparam.f/Dparam.pixelsize)^2+u_center.^2+v_center.^2);
-%mesh(u,v,z)
-x = (z.*(u_center))/(Dparam.fx/Dparam.pixelsize);
-y = (z.*(v_center))/(Dparam.fy/Dparam.pixelsize);
 
-min(z, [], 'all');
+if use_synthdata
+    z =((Dparam.f/Dparam.pixelsize)*Depth)./sqrt((Dparam.f/Dparam.pixelsize)^2+u_center.^2+v_center.^2);
+    x = (z.*(u_center))/(Dparam.fx/Dparam.pixelsize);
+    y = (z.*(v_center))/(Dparam.fy/Dparam.pixelsize);
+else
+    z = double(Depth) * 10^(-3) / pixel_size_d;
+    x = (z.*(u_center))/kinect_data.Dparam.fx;
+    y = (z.*(v_center))/kinect_data.Dparam.fy;
+end
 
 x = reshape(x.', 1, []);
 y = reshape(y.', 1, []);
@@ -76,10 +91,17 @@ axis equal
 drawnow;
 %% Task 2: Projection to color camera image plane (5 lines of code)
 
-X_proj = R*X + T;
-u_colorcam = ((Cparam.fx/Cparam.pixelsize)*(X_proj(1,:))./X_proj(3,:))+Cparam.cx;
-v_colorcam = ((Cparam.fy/Cparam.pixelsize)*(X_proj(2,:))./X_proj(3,:))+Cparam.cy;
-z_colorcam = X_proj(3,:);
+if use_synthdata
+    X_proj = R*X + T;
+    u_colorcam = ((Cparam.fx/Cparam.pixelsize)*(X_proj(1,:))./X_proj(3,:))+Cparam.cx;
+    v_colorcam = ((Cparam.fy/Cparam.pixelsize)*(X_proj(2,:))./X_proj(3,:))+Cparam.cy;
+    z_colorcam = X_proj(3,:);
+else
+    X_proj = kinect_data.R*X + kinect_data.T* 10^(-3) / pixel_size_d;
+    u_colorcam = (kinect_data.Cparam.fx*(X_proj(1,:))./X_proj(3,:))+kinect_data.Cparam.cx;
+    v_colorcam = (kinect_data.Cparam.fy*(X_proj(2,:))./X_proj(3,:))+kinect_data.Cparam.cy;
+    z_colorcam = X_proj(3,:);
+end    
 
 % Plotting
 figure; axis equal
@@ -96,9 +118,18 @@ drawnow;
 %% Task 3: Resampling projected data (3 lines of code)
 
 
-F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
-z_colorcam_reg = F(u', v');
-z_colorcam_reg = reshape(z_colorcam_reg, [640, 480])';
+
+if use_synthdata
+    F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
+    z_colorcam_reg = F(u', v');
+    z_colorcam_reg = reshape(z_colorcam_reg, [640, 480])';
+else
+    [u2,v2] = meshgrid(1:size(Image,2), 1:size(Image,1));
+    
+    F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
+    z_colorcam_reg = F(u2', v2');
+    z_colorcam_reg = reshape(z_colorcam_reg, [1920, 1080])';
+end
 
 % Plotting
 figure;
@@ -109,8 +140,8 @@ subplot( 133); imshowpair( Image, z_colorcam_reg); title('Task 3: Resampled dept
 %% Task 4: Visualizing combined depth/color data
 
 % Well, actually, this one is just plotting so you're done already
-figure; 
-surf(z_colorcam_reg, double(Image), 'EdgeColor', 'none')
+figure; colorbar;
+surf(z_colorcam_reg, Image, 'EdgeColor', 'none')
 set(gca,'ZDir','reverse');
 set(gca,'YDir','reverse');
 title( 'Task 4: 3D mesh generated from resampled depth')
@@ -120,7 +151,7 @@ drawnow;
 
 % Just plotting here, add your implementation to the edgeRemoval.h function
 figure; 
-h = surf(z_colorcam_reg, double(Image), 'EdgeColor', 'none');
+h = surf(z_colorcam_reg, Image, 'EdgeColor', 'none');
 set(gca,'ZDir','reverse');
 set(gca,'YDir','reverse');
 title( 'Task 5: 3D mesh generated from resampled depth with edge artifacts removed')
@@ -128,13 +159,30 @@ edgeRemoval(h);
 
 
 %% Task 6: Color resampling (4 lines of code)
-[u_color,v_color] = meshgrid(1:size(Image,2), 1:size(Image,1));
-colors = interp2(u_colorcam', v_colorcam', reshape(Image, [307200, 1 ,3]), u_color', v_color');
-colors = reshape(colors, [480, 640]);
 
-F = scatteredInterpolant(double(u_colorcam'), double(v_colorcam'), double(z_colorcam'), 'nearest');
-z_colorcam_reg = F(u', v');
-z_colorcam_reg = reshape(z_colorcam_reg, [640, 480])';
+if use_synthdata
+    u_something = reshape(u_colorcam, [640,480])';
+    v_something = reshape(v_colorcam, [640,480])';
+
+    red_ch = interp2(u, v, Image(:,:,1), u_something, v_something,'nearest');
+    green_ch = interp2(u, v, Image(:,:,2), u_something, v_something,'nearest');
+    blue_ch = interp2(u, v, Image(:,:,3), u_something, v_something,'nearest');
+
+
+    resampledColorImage = cat(3, red_ch, green_ch, blue_ch);
+    z_something = reshape(z_colorcam, [640,480])';
+else
+    u_something = reshape(u_colorcam, [512, 424])';
+    v_something = reshape(v_colorcam, [512, 424])';
+
+    red_ch = interp2(u2, v2, Image(:,:,1), u_something, v_something,'nearest');
+    green_ch = interp2(u2, v2, Image(:,:,2), u_something, v_something,'nearest');
+    blue_ch = interp2(u2, v2, Image(:,:,3), u_something, v_something,'nearest');
+
+
+    resampledColorImage = cat(3, red_ch, green_ch, blue_ch);
+    z_something = reshape(z_colorcam, [512,424])';
+end    
 
 % Plotting
 figure; 
@@ -144,8 +192,8 @@ subplot( 232); imshow( z_colorcam_reg, []); title('Task 3: Resampled depth image
 subplot( 233); imshowpair( Image, z_colorcam_reg); title('Task 3: Resampled depth on original color')
 
 subplot( 234); imshow( resampledColorImage, []); title('Task 6: Resampled color image')
-subplot( 235); imshow( z, []); title('Task 6: Original depth image');
-subplot( 236); imshowpair( resampledColorImage, z); title('Task 6: Resampled color on original depth')
+subplot( 235); imshow( z_something, []); title('Task 6: Original depth image');
+subplot( 236); imshowpair( resampledColorImage, z_something); title('Task 6: Resampled color on original depth')
 drawnow;
 
 
@@ -154,7 +202,7 @@ drawnow;
 
 
 
-
+%{
 
 % Plotting
 figure;
@@ -226,5 +274,5 @@ drawnow;
 
 
 
-
+%}
 
