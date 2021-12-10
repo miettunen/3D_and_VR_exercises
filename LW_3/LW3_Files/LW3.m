@@ -13,7 +13,7 @@
 %--------------------------------------------------------------------------
 %% 
 clear;
-% LW3_Demo
+%LW3_Demo
 %% Model creation - Task 2.1
 clear;
 close all;
@@ -226,9 +226,9 @@ screen.coord3D = [screen_size(1)/2, screen_size(1)/2 -screen_size(1)/2 -screen_s
                   0  screen_size(2) screen_size(2) 0; ... %Y
                   0 0 0 0];    %Z
 
-
 viewer_location = [ 0.5, screen_size(2)/2, -dist_from_screen]; % [X,Y,Z]
-change_viewpoint(model1, viewer_location, screen);
+viewer_orientation = eye(3);
+change_viewpoint(model1, viewer_location, viewer_orientation, screen);
 
 
 
@@ -237,8 +237,15 @@ change_viewpoint(model1, viewer_location, screen);
 %% Accessing Kinect - Task 2.4
 %Add Kinect lib
 addpath('./KinectLib/');
+
 %Load calibration data
 load KinectCalibData.mat;
+synthetic = true;
+if synthetic
+    load faceTrackingInfo.mat;
+    load depthFrames.mat;
+end
+
 %Depth map resolution
 nRowsD = 424;
 nColsD = 512;
@@ -261,58 +268,98 @@ KD = [Dparam.fx, 0, Dparam.cx; ...
 option = 8;
 
 %Init Kinect:
-hd = KinectInterface(option);
-hd = hd.KinectInit();
+%hd = KinectInterface(option);
+%hd = hd.KinectInit();
 
 
 %Get Kinect data
 h = figure;
 while(ishandle(h)) %loop until figure is closed
     
-    %Grab data
-    hd = hd.KinectGetData();
-    depthFrame = hd.depthImg;
-    faceData = hd.faceTrack;
- 
-    %If data is available
-    if(~isempty(depthFrame) && ~isempty(faceData))
-    
-        %Draw depth image
-        cla;
-        imagesc(depthFrame);
-        colormap(gray(65536));
-        axis image;
-        hold on;
+    if ~synthetic % Kinect data
+        %Grab data
+        hd = hd.KinectGetData();
+        depthFrame = hd.depthImg;
+        faceData = hd.faceTrack;
         
-        %Draw face tracking data:
-        frameCell = struct2cell(faceData);
-        %Draw ROI
-        rectangle('Position',faceData.ROI, 'EdgeColor', 'r', 'LineWidth', 2);
-        %Draw facial feature points (eyes, mouth, nose)
-        for (i=1:5)
-            plot(frameCell{i}.Position(1), frameCell{i}.Position(2), '.g', 'MarkerSize', 20);
+        %If data is available
+        if(~isempty(depthFrame) && ~isempty(faceData))
+
+            %Draw depth image
+            cla;
+            imagesc(depthFrame);
+            colormap(gray(65536));
+            axis image;
+            hold on;
+
+            %Draw face tracking data:
+            frameCell = struct2cell(faceData);
+            %Draw ROI
+            rectangle('Position',faceData.ROI, 'EdgeColor', 'r', 'LineWidth', 2);
+            %Draw facial feature points (eyes, mouth, nose)
+            for (i=1:5)
+                plot(frameCell{i}.Position(1), frameCell{i}.Position(2), '.g', 'MarkerSize', 20);
+            end
+
+
+            %Your code: process frame and face data + update virtual screen
+            %data (without or with additional models - Task 2.5) + (jitter 
+            %stabilization - Task 2.6) + (Z-buffer rendering - Task 2.7)
+
         end
+        drawnow();
         
-        
-        
-        
-        
-        
-        
-        %Your code: process frame and face data + update virtual screen
-        %data (without or with additional models - Task 2.5) + (jitter 
-        %stabilization - Task 2.6) + (Z-buffer rendering - Task 2.7)
-        
-        
-        
-        
-        
+    else % Synthetic data
+            
+        for i=1:length(depthFrames)
+            if(ishandle(h))
+                
+                frames = depthFrames(i);
+                depthFrame = frames{1};
+
+                faces = faceTrackingInfo(i);
+                faceFrame = faces{1};
+
+                %Draw depth image
+                cla;
+                %imagesc(depthFrame);
+                %colormap(gray(65536));
+                axis image;
+                hold on;
+
+                %Draw face tracking data:
+                frameCell = struct2cell(faceFrame);
+                %Draw ROI
+                r = rectangle('Position',faceFrame.ROI, 'EdgeColor', 'r', 'LineWidth', 2);
+                head_position = [r.Position(1) + r.Position(3)/2 r.Position(2) + r.Position(4)/2];
+                %plot(head_position(1), head_position(2), '.b', 'MarkerSize', 20);
+                
+                head_depth = depthFrame(round(head_position(1)), round(head_position(2)));
+                
+                z = double(head_depth) * 10^(-3); %/ screen.pixelSize(1);
+                x = (z*(head_position(1)))/Dparam.fx;
+                y = (z*(head_position(2)))/Dparam.fy;
+                viewer_loc = [x y z];
+
+                change_viewpoint(model1, viewer_loc, screen);
+                %Draw facial feature points (eyes, mouth, nose)
+                for (i=1:5)
+                    plot(frameCell{i}.Position(1), frameCell{i}.Position(2), '.g', 'MarkerSize', 20);
+                end
+                drawnow();
+                clf;
+                
+            end
+            
+            
+            
+        end
+
         
     end
-    
-    drawnow();
+     
+   %drawnow();   
 end
-
 %Close Kinect
 hd.KinectClose();
 clear mex; %free mex/static memory
