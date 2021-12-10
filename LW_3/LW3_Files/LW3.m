@@ -226,9 +226,20 @@ screen.coord3D = [screen_size(1)/2, screen_size(1)/2 -screen_size(1)/2 -screen_s
                   0  screen_size(2) screen_size(2) 0; ... %Y
                   0 0 0 0];    %Z
 
+x1 = linspace(0, 0.3, 20);
+x2 = linspace(0.3, -0.3, 40);
+x = [x1 x2];
 viewer_location = [ 0.5, screen_size(2)/2, -dist_from_screen]; % [X,Y,Z]
-viewer_orientation = eye(3);
-change_viewpoint(model1, viewer_location, viewer_orientation, screen);
+f = figure;
+for i=1:length(x)
+    if ishandle(f)
+        clf(f);
+        hold on;
+        viewer_location = [ x(i), screen_size(2)/2, -dist_from_screen]; % [X,Y,Z]
+        change_viewpoint(model1, viewer_location, screen);
+        drawnow();
+    end
+end
 
 
 
@@ -310,10 +321,12 @@ while(ishandle(h)) %loop until figure is closed
         drawnow();
         
     else % Synthetic data
-            
+        viewer_loc_buffer = zeros(3,5);
+        buffer_ptr = 1;
+        
         for i=1:length(depthFrames)
             if(ishandle(h))
-                
+                clf(h);
                 frames = depthFrames(i);
                 depthFrame = frames{1};
 
@@ -322,8 +335,8 @@ while(ishandle(h)) %loop until figure is closed
 
                 %Draw depth image
                 cla;
-                %imagesc(depthFrame);
-                %colormap(gray(65536));
+                imagesc(depthFrame);
+                colormap(gray(65536));
                 axis image;
                 hold on;
 
@@ -332,34 +345,35 @@ while(ishandle(h)) %loop until figure is closed
                 %Draw ROI
                 r = rectangle('Position',faceFrame.ROI, 'EdgeColor', 'r', 'LineWidth', 2);
                 head_position = [r.Position(1) + r.Position(3)/2 r.Position(2) + r.Position(4)/2];
-                %plot(head_position(1), head_position(2), '.b', 'MarkerSize', 20);
+                plot(head_position(1), head_position(2), '.b', 'MarkerSize', 20);
                 
                 head_depth = depthFrame(round(head_position(1)), round(head_position(2)));
                 
                 z = double(head_depth) * 10^(-3); %/ screen.pixelSize(1);
                 x = (z*(head_position(1)))/Dparam.fx;
                 y = (z*(head_position(2)))/Dparam.fy;
-                viewer_loc = [x y z];
-
-                change_viewpoint(model1, viewer_loc, screen);
+                viewer_loc = [x y -z];
+                viewer_loc_buffer(:, buffer_ptr) = viewer_loc;
+                buffer_ptr = buffer_ptr + 1;
+                viewer_loc_filtered = jitter_stabilization(viewer_loc_buffer);
                 %Draw facial feature points (eyes, mouth, nose)
                 for (i=1:5)
                     plot(frameCell{i}.Position(1), frameCell{i}.Position(2), '.g', 'MarkerSize', 20);
                 end
                 drawnow();
-                clf;
+                if buffer_ptr == 6
+                    buffer_ptr = 1;
+                end
                 
             end
-            
-            
             
         end
 
         
     end
-     
    %drawnow();   
 end
+
 %Close Kinect
 hd.KinectClose();
 clear mex; %free mex/static memory

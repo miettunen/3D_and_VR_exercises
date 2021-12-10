@@ -68,7 +68,8 @@ function [] = change_viewpoint(model, viewer_location, screen)
             'FaceColor', model.color(:,c), ...
             'EdgeColor', 'none');
     end
-    title('Task 2.3');
+    format = '%.2f';
+    title(['Task 2.3  [X,Y,Z]=[', num2str(viewer_location(1), format), ' ', num2str(viewer_location(2), format), ' ', num2str(viewer_location(3), format),']']);
     axis image;
     xlim([0,screen.res(1)]);
     ylim([0,screen.res(2)]);
