@@ -20,7 +20,7 @@ function [] = change_viewpoint(model, viewer_location, screen)
 
     XYZ = model.vertices;
     screen.uv = Project3DTo2D(XYZ, screen.K, viewer.R, viewer.T);
-    
+    model.connectivity = sort_polygons(model.vertices, model.connectivity, viewer.R, viewer.T);
     %Draw scene
     subplot(1,2,1);
     for c = 1:size(model.connectivity, 2)
