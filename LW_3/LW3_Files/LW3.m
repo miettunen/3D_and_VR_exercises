@@ -15,6 +15,8 @@
 clear;
 LW3_Demo
 %% Model creation - Task 2.1
+clear;
+close all;
 
 % points = [0,0,0; 1,0,0; 0,1,0; 0,0,1; 1,1,0; 1,0,1; 0,1,1; 1,1,1]
 %             1       2     3      4      5       6     7      8
@@ -29,18 +31,18 @@ cube.connectivity = [1 5 1 6 1 7, 2 8 3 8 4 8; ...
                      2 2 2 2 3 3, 5 5 5 5 6 6; ...
                      3 3 4 4 4 4, 6 6 7 7 7 7]; 
 
-cube.color = [rand rand rand rand rand rand rand rand rand rand rand rand; ... %R
-              rand rand rand rand rand rand rand rand rand rand rand rand; ... %G
-              rand rand rand rand rand rand rand rand rand rand rand rand];    %B 
+cube.color = [0.9020    0.2353    1.0000         0    0.9608    0.5686    0.2745    0.9412    0.8235    0.9804         0    0.8627; ... %R
+              0.0980    0.7059    0.8824    0.5098    0.5098    0.1176    0.9412    0.1961    0.9608    0.7451    0.5020    0.7451; ... %G
+              0.2941    0.2941    0.0980    0.7843    0.1882    0.7059    0.9412    0.9020    0.2353    0.8314    0.5020    1.0000];    %B 
 
 %Transform the model:          
 model1 = cube;
 %Scale factor
 scale = 0.1;
 %Rotation matrix
-rotation = rotX(34) * rotY(256) * rotZ(163);
+rotation = rotX(10) * rotY(180) * rotZ(15);
 %Translation vector
-translation = [0, 0, 0.5];
+translation = [0, 0.1, 0.2];
 %Apply transformations
 model1.vertices = model1.vertices .* scale;
 model1.vertices = rotation * model1.vertices;
@@ -106,18 +108,13 @@ screen.pixelSize = pixel_size; % [x,y]
 %Screen physical size (in meters)
 screen.physicalSize = screen_size; % [x,y]
 %Screen 3D coordinates
-screen.coord3D = [-screen_size(1)/2, screen_size(1)/2 screen_size(1)/2 -screen_size(1)/2 ; ... %X 
-                  0 0 screen_size(2) screen_size(2); ... %Y
+screen.coord3D = [screen_size(1)/2, screen_size(1)/2 -screen_size(1)/2 -screen_size(1)/2 ; ... %X 
+                  0  screen_size(2) screen_size(2) 0; ... %Y
                   0 0 0 0];    %Z
 
-%Screen f (distance from viewer to screen)
-screen.f = [dist_from_screen/pixel_size(1), dist_from_screen/pixel_size(2)]; % [fx,fy]
-%Screen principal point
-screen.pp = [ screen_res(1)/2, screen_res(2)/2]; %[cx, cy]
-%Screen intrinsic parameters matrix
-screen.K = [screen.f(1), 0, screen.pp(1); ...
-           0, screen.f(2), screen.pp(2); ...
-           0, 0, 1];
+
+
+       
 %Projected 3D points for each model in the scene       
 screen.uv = cell([1, length(scene)]);
 
@@ -128,7 +125,16 @@ viewer.Location = [ 0, screen_size(2)/2, -dist_from_screen]; % [X,Y,Z]
 viewer.Orientation = rotX(0) * rotY(0) * rotZ(0); % Identity matrix => eye(3) 
 %Viewer's extrinsic parameters
 viewer.R = eye(3);
-viewer.T = [0 0 0];
+viewer.T = -viewer.Location*viewer.R;
+
+%Screen f (distance from viewer to screen)
+screen.f = [viewer.T(3)/pixel_size(1), viewer.T(3)/pixel_size(2)]; % [fx,fy]
+%Screen principal point
+screen.pp = [ screen_res(1)/2-viewer.T(1)/pixel_size(1), screen_res(2)/2-(viewer.T(2)/pixel_size(2)+screen_res(2)/2)]; %[cx, cy]
+%Screen intrinsic parameters matrix
+screen.K = [screen.f(1), 0, screen.pp(1); ...
+           0, screen.f(2), screen.pp(2); ...
+           0, 0, 1];
 
 XYZ = scene{1}.vertices;
 uv = Project3DTo2D(XYZ, screen.K, viewer.R, viewer.T);
