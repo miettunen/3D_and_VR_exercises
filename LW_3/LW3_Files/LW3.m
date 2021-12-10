@@ -207,11 +207,28 @@ for(k=1:length(scene))
 end
 
 %% Changing viewpoint - Task 2.3
+screen_size = [0.596, 0.335];    % päätalo
+screen_res = [2556 1440];
+
+pixel_size = [screen_size(1)/screen_res(1) screen_size(1)/screen_res(1)];
+dist_from_screen = 0.6;
+
+%Screen properties:
+screen = [];
+%Resolution (native resolution)
+screen.res = screen_res; % [u,v]
+%Screen's pixel size - force pixel to be square!  
+screen.pixelSize = pixel_size; % [x,y]
+%Screen physical size (in meters)
+screen.physicalSize = screen_size; % [x,y]
+%Screen 3D coordinates
+screen.coord3D = [screen_size(1)/2, screen_size(1)/2 -screen_size(1)/2 -screen_size(1)/2 ; ... %X 
+                  0  screen_size(2) screen_size(2) 0; ... %Y
+                  0 0 0 0];    %Z
 
 
-
-
-
+viewer_location = [ 0.5, screen_size(2)/2, -dist_from_screen]; % [X,Y,Z]
+change_viewpoint(model1, viewer_location, screen);
 
 
 
