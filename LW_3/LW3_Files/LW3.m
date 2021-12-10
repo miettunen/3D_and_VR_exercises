@@ -13,7 +13,7 @@
 %--------------------------------------------------------------------------
 %% 
 clear;
-LW3_Demo
+% LW3_Demo
 %% Model creation - Task 2.1
 clear;
 close all;
@@ -94,14 +94,16 @@ xlabel('X [m]'); ylabel('Y [m]'); zlabel('Z [m]');
 
 %% Perspective projection - Task 2.2
 
-pixel_size = [screen_size(1)/screen_res(1) screen_size(1)/screen_res(1)];
-dist_from_screen = 0.6;
-
 % screen_size = [0.527, 0.296];  % tebari
 % screen_res = [1920 1080];
 
 screen_size = [0.596, 0.335];    % päätalo
 screen_res = [2556 1440];
+
+pixel_size = [screen_size(1)/screen_res(1) screen_size(1)/screen_res(1)];
+dist_from_screen = 0.6;
+
+
 
 %Screen properties:
 screen = [];

@@ -1,9 +1,9 @@
 function [uv] = Project3DTo2D(XYZ_data, screen_K, viewer_R, viewer_T)
-    [m, n] = size(XYZ_data);  
-    uv = zeros([2, n]);
-    for i = 1:n
-        X_proj = viewer_R*XYZ_data(:,i) + viewer_T;
-        projection = screen_K*X_proj;
-        uv(:,i) = [projection(1)/projection(3), projection(2)/projection(3)];
-    end
+    t = viewer_T';
+    rt = [viewer_R, t];
+    P = screen_K*rt;
+    XYZ_data(4,:) = 1;
+    uvk = P*XYZ_data;
+    uv = uvk(1,:)./uvk(3,:);
+    uv(2,:) = uvk(2,:)./uvk(3,:);
 end
