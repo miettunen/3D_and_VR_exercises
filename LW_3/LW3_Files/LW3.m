@@ -285,6 +285,18 @@ option = 8;
 
 %Get Kinect data
 h = figure;
+if synthetic
+    plot_x_raw = zeros(2,length(depthFrames));
+    plot_y_raw = zeros(2,length(depthFrames));
+    plot_x_filt = zeros(2,length(depthFrames));
+    plot_y_filt = zeros(2,length(depthFrames));
+    delta_x = 0;
+    delta_y = zeros(1, length(depthFrames));
+    delta_z = zeros(1, length(depthFrames));
+end
+delta_y = 0;
+delta_z = 0;
+plot_len_x = 1:185;
 while(ishandle(h)) %loop until figure is closed
     
     if ~synthetic % Kinect data
@@ -323,6 +335,14 @@ while(ishandle(h)) %loop until figure is closed
     else % Synthetic data
         viewer_loc_buffer = zeros(3,5);
         buffer_ptr = 1;
+
+        previous_point_raw = [0 0];
+        previous_point_filt = [0 0];
+        
+        prev_x = 0;
+        prev_y = 0;
+        prev_z = 0;
+        
         
         for i=1:length(depthFrames)
             if(ishandle(h))
@@ -332,23 +352,16 @@ while(ishandle(h)) %loop until figure is closed
 
                 faces = faceTrackingInfo(i);
                 faceFrame = faces{1};
-
-                %Draw depth image
-                cla;
-                imagesc(depthFrame);
-                colormap(gray(65536));
-                axis image;
-                hold on;
+                           
 
                 %Draw face tracking data:
                 frameCell = struct2cell(faceFrame);
                 %Draw ROI
-                r = rectangle('Position',faceFrame.ROI, 'EdgeColor', 'r', 'LineWidth', 2);
-                head_position = [r.Position(1) + r.Position(3)/2 r.Position(2) + r.Position(4)/2];
-                plot(head_position(1), head_position(2), '.b', 'MarkerSize', 20);
-                
-                head_depth = depthFrame(round(head_position(1)), round(head_position(2)));
-                
+                %r = rectangle('Position',faceFrame.ROI, 'EdgeColor', 'r', 'LineWidth', 2);
+                %head_position = [r.Position(1) + r.Position(3)/2 r.Position(2) + r.Position(4)/2];
+                head_position = [faceFrame.ROI(1) + faceFrame.ROI(3)/2 faceFrame.ROI(2) + faceFrame.ROI(4)/2]; 
+               
+                head_depth = depthFrame(round(faceFrame.FacePointType_Nose.Position(1)), round(faceFrame.FacePointType_Nose.Position(2))); 
                 z = double(head_depth) * 10^(-3); %/ screen.pixelSize(1);
                 x = (z*(head_position(1)))/Dparam.fx;
                 y = (z*(head_position(2)))/Dparam.fy;
@@ -356,19 +369,59 @@ while(ishandle(h)) %loop until figure is closed
                 viewer_loc_buffer(:, buffer_ptr) = viewer_loc;
                 buffer_ptr = buffer_ptr + 1;
                 viewer_loc_filtered = jitter_stabilization(viewer_loc_buffer);
-                %Draw facial feature points (eyes, mouth, nose)
-                for (i=1:5)
-                    plot(frameCell{i}.Position(1), frameCell{i}.Position(2), '.g', 'MarkerSize', 20);
+                uv_filt = [-Dparam.fx *(viewer_loc_filtered(1)/viewer_loc_filtered(3)) -Dparam.fy *(viewer_loc_filtered(2)/viewer_loc_filtered(3))];
+                
+                
+                if i > 1
+                    delta_x = x - prev_x;
+                    delta_y(i) = y - prev_y;
+                    delta_z(i) = z - prev_z;
+                    %Draw depth image
+                    %cla;
+                    subplot(2,2,1);
+                    imagesc(depthFrame);
+                    colormap(gray(65536));
+                    axis image;
+                    hold on;
+                    title('Raw data');
+                   
+                    plot_x_raw(:, i) = [head_position(1) previous_point_raw(1)];
+                    plot_y_raw(:, i) = [head_position(2) previous_point_raw(2)];
+                    line(plot_x_raw, plot_y_raw, 'Color', 'b');
+                    
+                    
+                    %Draw depth image
+                    subplot(2,2,2);
+                    imagesc(depthFrame);
+                    colormap(gray(65536));
+                    axis image;
+                    hold on;
+                    title('Filtered data');
+                     
+                    plot_x_filt(:, i) = [uv_filt(1) previous_point_filt(1)];
+                    plot_y_filt(:, i) = [uv_filt(2) previous_point_filt(2)];
+                    plot(plot_x_filt, plot_y_filt, 'Color', 'b');
+                    subplot(2,2,3);
+                    line(plot_len_x, delta_x, 'Color', 'r');
+                    
+                    drawnow limitrate;
                 end
-                drawnow();
+                %Draw head pos
+                %plot(head_position(1), head_position(2), '.g', 'MarkerSize', 20);
+               
+                
                 if buffer_ptr == 6
                     buffer_ptr = 1;
                 end
+                previous_point_raw = head_position;
+                previous_point_filt = uv_filt;
+                prev_x = x;
+                prev_y = y;
+                prev_z = z;
                 
             end
-            
         end
-
+        %drawnow;
         
     end
    %drawnow();   
