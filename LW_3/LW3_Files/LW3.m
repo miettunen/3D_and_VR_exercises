@@ -48,22 +48,35 @@ model1.vertices = model1.vertices .* scale;
 model1.vertices = rotation * model1.vertices;
 model1.vertices = model1.vertices + translation';
 
-% %Transform the model:          
-% model2 = cube;
-% %Scale factor
-% scale = 0.4;
-% %Rotation matrix
-% rotation = rotX(6657457) * rotY(5468) * rotZ(25564);
-% %Translation vector
-% translation = [0, 0, 1.5];
-% %Apply transformations
-% model2.vertices = model2.vertices .* scale;
-% model2.vertices = rotation * model2.vertices;
-% model2.vertices = model2.vertices + translation';
+%Transform the model:          
+model2 = cube;
+%Scale factor
+scale = 0.05;
+%Rotation matrix
+rotation = rotX(35) * rotY(180) * rotZ(60);
+%Translation vector
+translation = [0, 0.1, 0.4];
+%Apply transformations
+model2.vertices = model2.vertices .* scale;
+model2.vertices = rotation * model2.vertices;
+model2.vertices = model2.vertices + translation';
+
+%Transform the model:          
+model3 = cube;
+%Scale factor
+scale = 0.03;
+%Rotation matrix
+rotation = rotX(23) * rotY(180) * rotZ(97);
+%Translation vector
+translation = [-0.05, 0.12, -0.1];
+%Apply transformations
+model3.vertices = model3.vertices .* scale;
+model3.vertices = rotation * model3.vertices;
+model3.vertices = model3.vertices + translation';
 
 
 %The scene
-scene = {model1};
+scene = {model1, model2, model3};
 
 %Draw scene, triangle-by-triangle
 figure(1), cla;
@@ -145,6 +158,8 @@ screen.K = [screen.f(1), 0, screen.pp(1); ...
 XYZ = scene{1}.vertices;
 uv = Project3DTo2D(XYZ, screen.K, viewer.R, viewer.T);
 
+scene_sorted = sort_models(scene, viewer.R, viewer.T);
+
 for(k=1:length(scene))
     
     %Project
@@ -153,7 +168,7 @@ for(k=1:length(scene))
     
     
     %Draw scene
-    subplot(1,2,1);
+    subplot(2,2,[1,3]);
     for c = 1:size(scene{k}.connectivity, 2)
         patch('Faces',[1 2 3], ...
             'Vertices',[scene{k}.vertices(:,scene{k}.connectivity(1, c)), ...
@@ -187,7 +202,7 @@ for(k=1:length(scene))
     
     
     %Draw projected scene - virtual display
-    subplot(1,2,2)
+    subplot(2,2,2)
     plot(screen.uv{k}(1,:), screen.uv{k}(2,:), '.', 'MarkerSize', 20);
     set(gca, 'YDir', 'reverse');
     hold on;
@@ -200,6 +215,29 @@ for(k=1:length(scene))
             'EdgeColor', 'none');
     end
     title('Perspective projection - Task 2.2');
+    axis image;
+    xlim([0,screen_res(1)]);
+    ylim([0,screen_res(2)]);
+    
+    XYZ_data = scene_sorted{k}.vertices;
+    screen_sorted.uv(k) = { Project3DTo2D(XYZ_data, screen.K, viewer.R, viewer.T) };
+    
+    %Draw projected scene - virtual display - painter's algorithm
+    subplot(2,2,4)
+    plot(screen.uv{k}(1,:), screen.uv{k}(2,:), '.', 'MarkerSize', 20);
+    set(gca, 'YDir', 'reverse');
+    hold on;
+    scene_sorted{k}.connectivity = sort_polygons(scene_sorted{k}.vertices, scene_sorted{k}.connectivity, viewer.R, viewer.T);
+    for c = 1:size(scene_sorted{k}.connectivity, 2)
+        t1 = scene_sorted{k}.connectivity;
+        patch(  'Faces', [1 2 3], ...
+            'Vertices', [screen_sorted.uv{k}(:,scene_sorted{k}.connectivity(1, c)), ...
+            screen_sorted.uv{k}(:,scene_sorted{k}.connectivity(2, c)), ...
+            screen_sorted.uv{k}(:,scene_sorted{k}.connectivity(3, c))]', ...
+            'FaceColor', scene_sorted{k}.color(:,c), ...
+            'EdgeColor', 'none');
+    end
+    title("Additional models and Painter's algorithm - Task 2.5");
     axis image;
     xlim([0,screen_res(1)]);
     ylim([0,screen_res(2)]);
@@ -236,7 +274,12 @@ for i=1:length(x)
         clf(f);
         hold on;
         viewer_location = [ x(i), screen_size(2)/2, -dist_from_screen]; % [X,Y,Z]
-        change_viewpoint(model1, viewer_location, screen);
+        viewer_R = eye(3);
+        viewer_T = -viewer.Location*viewer_R;
+        scene_sorted = sort_models(scene, viewer_T, viewer_T);
+        for k=1:length(scene)
+            change_viewpoint(scene_sorted{k}, viewer_location, screen);
+        end
         drawnow();
     end
 end
@@ -342,8 +385,8 @@ while(ishandle(h)) %loop until figure is closed
         prev_x = 0;
         prev_y = 0;
         prev_z = 0;
-        
-        
+
+
         for i=1:length(depthFrames)
             if(ishandle(h))
                 clf(h);
@@ -352,7 +395,7 @@ while(ishandle(h)) %loop until figure is closed
 
                 faces = faceTrackingInfo(i);
                 faceFrame = faces{1};
-                           
+
 
                 %Draw face tracking data:
                 frameCell = struct2cell(faceFrame);

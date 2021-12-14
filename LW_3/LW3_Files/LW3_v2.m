@@ -13,7 +13,7 @@
 %--------------------------------------------------------------------------
 %% 
 clear;
-LW3_Demo
+%LW3_Demo
 %% Model creation - Task 2.1
 clear;
 close all;
@@ -328,6 +328,18 @@ option = 8;
 
 %Get Kinect data
 h = figure;
+if synthetic
+    plot_x_raw = zeros(2,length(depthFrames));
+    plot_y_raw = zeros(2,length(depthFrames));
+    plot_x_filt = zeros(2,length(depthFrames));
+    plot_y_filt = zeros(2,length(depthFrames));
+    delta_x = 0;
+    delta_y = zeros(1, length(depthFrames));
+    delta_z = zeros(1, length(depthFrames));
+end
+delta_y = 0;
+delta_z = 0;
+plot_len_x = 1:185;
 while(ishandle(h)) %loop until figure is closed
     
     if ~synthetic % Kinect data
@@ -366,7 +378,15 @@ while(ishandle(h)) %loop until figure is closed
     else % Synthetic data
         viewer_loc_buffer = zeros(3,5);
         buffer_ptr = 1;
+
+        previous_point_raw = [0 0];
+        previous_point_filt = [0 0];
         
+        prev_x = 0;
+        prev_y = 0;
+        prev_z = 0;
+
+
         for i=1:length(depthFrames)
             if(ishandle(h))
                 clf(h);
