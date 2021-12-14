@@ -19,24 +19,24 @@ function [rendered, z_buffer] = z_buffer(scene, viewer_location, screen)
                0, 0, 1];
            
     z_buffer = zeros(screen.res(2),screen.res(1));
-    z_buffer(:,:) = 1;
+    z_buffer(:,:) = 1.5;
     
     rendered = zeros(screen.res(2),screen.res(1),3);
+    rendered(:,:,:) = 1;
     
     for k = 1:length(scene)
         model = scene{k};
         for c = 1:length(model.connectivity)
             points = model.vertices(:,model.connectivity(:,c));
             
-            uv = Project3DTo2D(points, screen.K, viewer.R, viewer.T);
+            [uv, uvk] = Project3DTo2D(points, screen.K, viewer.R, viewer.T);
             xyz_proj = viewer.R*points+viewer.T;
-            z_values = xyz_proj(3,:);
+            z_values = uvk(3,:);
             
-            
-            bounding_box = int64([min(uv(1,:), [], 'all')-1 ...
-                min(uv(2,:), [], 'all')-1 ...
-                max(uv(1,:), [], 'all')+1 ...
-                max(uv(2,:), [], 'all')+1]);
+            bounding_box = int64([min(uv(1,:), [], 'all') ...
+                min(uv(2,:), [], 'all') ...
+                max(uv(1,:), [], 'all') ...
+                max(uv(2,:), [], 'all')]);
             xv = uv(1,:);
             yv = uv(2,:);
             xq = double(bounding_box(1)):1:double(bounding_box(3));
@@ -45,14 +45,7 @@ function [rendered, z_buffer] = z_buffer(scene, viewer_location, screen)
             [xq, yq] = meshgrid(xq,yq);
             xq = reshape(xq.',1,[]);
             yq = reshape(yq.',1,[]);
-            
-            
-            test = int64([min(xq, [], 'all')-1 ...
-                min(yq, [], 'all')-1 ...
-                max(xq, [], 'all')+1 ...
-                max(yq, [], 'all')+1]);
-            
-            
+         
             in = inpolygon(xq,yq,xv,yv);
             surface_pixels = cat(1, xq(in), yq(in));
             
@@ -64,7 +57,9 @@ function [rendered, z_buffer] = z_buffer(scene, viewer_location, screen)
                 w1 = ((uv(2,2)-uv(2,3))*(pixel(1)-uv(1,3)) + (uv(1,3)-uv(1,2))*(pixel(2)-uv(2,3))) / ((uv(2,2)-uv(2,3))*(uv(1,1)-uv(1,3)) + (uv(1,3)-uv(1,2))*(uv(2,1)-uv(2,3)));
                 w2 = ((uv(2,3)-uv(2,1))*(pixel(1)-uv(1,3)) + (uv(1,1)-uv(1,3))*(pixel(2)-uv(2,3))) / ((uv(2,2)-uv(2,3))*(uv(1,1)-uv(1,3)) + (uv(1,3)-uv(1,2))*(uv(2,1)-uv(2,3)));
                 w3 = 1-w1-w2;
-                pixel_z = z_values(1) * w1 + z_values(2) * w2 + z_values(3) * w3;
+                pixel_z = inv( inv(z_values(1)) * w1 + inv(z_values(2)) * w2 + inv(z_values(3)) * w3 );
+                
+                
                 if pixel_z < z_buffer(pixel(2), pixel(1))
                     rendered(pixel(2), pixel(1), :) = model.color(:,c);
                     z_buffer(pixel(2), pixel(1)) = pixel_z;

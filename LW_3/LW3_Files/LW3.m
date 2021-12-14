@@ -13,7 +13,7 @@
 %--------------------------------------------------------------------------
 %% 
 clear;
-%LW3_Demo
+% LW3_Demo
 %% Model creation - Task 2.1
 clear;
 close all;
@@ -105,7 +105,7 @@ view(45,36);
 xlim([-1.2,1.2]); ylim([-1.2,1.2]); zlim([-1.2,1.2]);  
 xlabel('X [m]'); ylabel('Y [m]'); zlabel('Z [m]');
 
-%% Perspective projection - Task 2.2
+%% Perspective projection and Painter's algorithm/additional models - Task 2.2, 2.5
 
 % screen_size = [0.527, 0.296];  % tebari
 % screen_res = [1920 1080];
@@ -421,6 +421,78 @@ delete(h);
 %Close Kinect
 %hd.KinectClose();
 clear mex; %free mex/static memory
+%% Z-Buffering - Task 2.7
+
+screen.f = [viewer.T(3)/pixel_size(1), viewer.T(3)/pixel_size(2)]; % [fx,fy]
+%Screen principal point
+screen.pp = [ screen_res(1)/2-viewer.T(1)/pixel_size(1), screen_res(2)/2-(viewer.T(2)/pixel_size(2)+screen_res(2)/2)]; %[cx, cy]
+%Screen intrinsic parameters matrix
+screen.K = [screen.f(1), 0, screen.pp(1); ...
+           0, screen.f(2), screen.pp(2); ...
+           0, 0, 1];
+
+
+[rendered_image, finished_zbuffer] = z_buffer(scene, viewer.Location, screen);
+
+for(k=1:length(scene))
+    
+    %Project
+    XYZ_data = scene{k}.vertices;
+    screen.uv(k) = { Project3DTo2D(XYZ_data, screen.K, viewer.R, viewer.T) };
+    
+    
+    %Draw scene
+    subplot(2,2,[1,3]);
+    for c = 1:size(scene{k}.connectivity, 2)
+        patch('Faces',[1 2 3], ...
+            'Vertices',[scene{k}.vertices(:,scene{k}.connectivity(1, c)), ...
+            scene{k}.vertices(:,scene{k}.connectivity(2, c)), ...
+            scene{k}.vertices(:,scene{k}.connectivity(3, c))]', ...
+            'FaceColor', scene{k}.color(:,c), ...
+            'EdgeColor', 'none');
+        
+        hold on;
+    end
+    
+    %Draw 3D screen
+    line([screen.coord3D(1,:), screen.coord3D(1,1)], ...
+         [screen.coord3D(2,:), screen.coord3D(2,1)], ...
+         [screen.coord3D(3,:), screen.coord3D(3,1)], ...
+         'Color',[0,0,0.3], 'LineWidth', 2);
+    
+    %Draw axes - sensor origin
+    DrawAxes(eye(3), [0,0,0], 1 ,'Sensor Origin', 0.01);
+    
+    %Draw viewer
+    DrawAxes(viewer.Orientation, viewer.Location, 0.2 ,'Viewer', 0.01);
+    
+    %Set title, axes format, limits, etc
+    title('Scene');
+    axis image;
+    grid on;
+    view(33,22);
+    xlim([-1.2,1.2]); ylim([-1.2,1.2]); zlim([-1.2,1.2]);
+    xlabel('X [m]'); ylabel('Y [m]'); zlabel('Z [m]');
+    
+    
+    %Draw projected scene - virtual display
+    subplot(2,2,2)
+    imshow(finished_zbuffer);
+    title("Rendered Z-buffer - Task 2.7");
+    axis on;
+    xlim([0,screen_res(1)]);
+    ylim([0,screen_res(2)]);
+    
+    
+    %Draw projected scene - virtual display - painter's algorithm
+    subplot(2,2,4)
+    imshow(rendered_image);
+    title("Rendered image using Z-buffer - Task 2.7");
+    axis on;
+    xlim([0,screen_res(1)]);
+    ylim([0,screen_res(2)]);
+    
+end
 
 %% Alternative head-tracking system using Kinect  - Task 2.8
 %Add Kinect lib
