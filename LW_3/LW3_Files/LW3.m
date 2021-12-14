@@ -288,7 +288,7 @@ end
 
 
 
-%% Accessing Kinect - Task 2.4
+%% Accessing Kinect and jitter stabilisation - Task 2.4 & 2.6
 %Add Kinect lib
 addpath('./KinectLib/');
 
@@ -321,157 +321,105 @@ KD = [Dparam.fx, 0, Dparam.cx; ...
 
 option = 8;
 
-%Init Kinect:
-%hd = KinectInterface(option);
-%hd = hd.KinectInit();
+% Synthetic setup
+delta_xyz = zeros(3, length(depthFrames));
+delta_xyz_filt = zeros(3, length(depthFrames));
+points_raw_x = zeros(1, length(depthFrames));
+points_raw_y = zeros(1, length(depthFrames));
+points_filt_x = zeros(1, length(depthFrames));
+points_filt_y = zeros(1, length(depthFrames));
 
 
-%Get Kinect data
-h = figure;
-if synthetic
-    plot_x_raw = zeros(2,length(depthFrames));
-    plot_y_raw = zeros(2,length(depthFrames));
-    plot_x_filt = zeros(2,length(depthFrames));
-    plot_y_filt = zeros(2,length(depthFrames));
-    delta_x = 0;
-    delta_y = zeros(1, length(depthFrames));
-    delta_z = zeros(1, length(depthFrames));
-end
-delta_y = 0;
-delta_z = 0;
 plot_len_x = 1:185;
-while(ishandle(h)) %loop until figure is closed
-    
-    if ~synthetic % Kinect data
-        %Grab data
-        hd = hd.KinectGetData();
-        depthFrame = hd.depthImg;
-        faceData = hd.faceTrack;
+
+
+viewer_loc_buffer = zeros(3,5);
+buffer_length = length(viewer_loc_buffer);
+buffer_ptr = 1;
+
+previous_point_raw = [0 0];
+previous_point_filt = [0 0];
+
+h = figure(1);
+previous_depth = 0;
+img = depthFrames(1);
+img_frame = img{1};
+img_size = size(img_frame);
+
+for i=1:length(depthFrames)
+    if(ishandle(h))
+  
+        frames = depthFrames(i);
+        depthFrame = frames{1};
         
-        %If data is available
-        if(~isempty(depthFrame) && ~isempty(faceData))
-
-            %Draw depth image
-            cla;
-            imagesc(depthFrame);
-            colormap(gray(65536));
-            axis image;
-            hold on;
-
-            %Draw face tracking data:
-            frameCell = struct2cell(faceData);
-            %Draw ROI
-            rectangle('Position',faceData.ROI, 'EdgeColor', 'r', 'LineWidth', 2);
-            %Draw facial feature points (eyes, mouth, nose)
-            for (i=1:5)
-                plot(frameCell{i}.Position(1), frameCell{i}.Position(2), '.g', 'MarkerSize', 20);
-            end
+        
+        faces = faceTrackingInfo(i);
+        faceFrame = faces{1};
 
 
-            %Your code: process frame and face data + update virtual screen
-            %data (without or with additional models - Task 2.5) + (jitter 
-            %stabilization - Task 2.6) + (Z-buffer rendering - Task 2.7)
+        %Draw face tracking data:
+        frameCell = struct2cell(faceFrame);
 
+        head_position = [faceFrame.ROI(1) + faceFrame.ROI(3)/2 faceFrame.ROI(2) + faceFrame.ROI(4)/2]; 
+        
+        head_depth = depthFrame(round(faceFrame.FacePointType_Nose.Position(1)), round(faceFrame.FacePointType_Nose.Position(2)));
+        
+        if head_depth == 0
+            head_depth = previous_depth;      
         end
-        drawnow();
         
-    else % Synthetic data
-        viewer_loc_buffer = zeros(3,5);
-        buffer_ptr = 1;
-
-        previous_point_raw = [0 0];
-        previous_point_filt = [0 0];
+        z = double(head_depth) * 10^(-3); %/ screen.pixelSize(1);
+        x = (z*(head_position(1)))/Dparam.fx;
+        y = (z*(head_position(2)))/Dparam.fy;
         
-        prev_x = 0;
-        prev_y = 0;
-        prev_z = 0;
+        viewer_loc = [x y -z];
+        viewer_loc_buffer(:, buffer_ptr) = viewer_loc;
+        
+        buffer_ptr = buffer_ptr + 1;
+        viewer_loc_filtered = jitter_stabilization(viewer_loc_buffer);
+        uv_filt = [-Dparam.fx *(viewer_loc_filtered(1)/viewer_loc_filtered(3)) -Dparam.fy *(viewer_loc_filtered(2)/viewer_loc_filtered(3))];
+        
+        image_center = [round(img_size(1)/2) round(img_size(2)/2)];
+        world_origo = [(z*(image_center(1)))/Dparam.fx (z*(image_center(2)))/Dparam.fy];
+        
 
+        
+        delta_xyz(:, i) = [x-world_origo(1) y-world_origo(2) -z + 0.5]';
+        delta_xyz_filt(:, i) = [viewer_loc_filtered(1)-world_origo(1) viewer_loc_filtered(2)-world_origo(2) viewer_loc_filtered(3)+0.5]';
 
-        for i=1:length(depthFrames)
-            if(ishandle(h))
-                clf(h);
-                frames = depthFrames(i);
-                depthFrame = frames{1};
+        points_raw_x(i) = head_position(1);
+        points_raw_y(i) = head_position(2);
+        points_filt_x(i) = uv_filt(1);
+        points_filt_y(i) = uv_filt(2);
 
-                faces = faceTrackingInfo(i);
-                faceFrame = faces{1};
+        %Draw depth image
+        subplot(2,2,1);
+        UpdateImage('Raw data', depthFrame, [points_raw_x(1:i); points_raw_y(1:i)]');
 
+        subplot(2,2,2);
+        UpdateImage('Filtered data', depthFrame, [points_filt_x(1:i); points_filt_y(1:i)]');
 
-                %Draw face tracking data:
-                frameCell = struct2cell(faceFrame);
-                %Draw ROI
-                %r = rectangle('Position',faceFrame.ROI, 'EdgeColor', 'r', 'LineWidth', 2);
-                %head_position = [r.Position(1) + r.Position(3)/2 r.Position(2) + r.Position(4)/2];
-                head_position = [faceFrame.ROI(1) + faceFrame.ROI(3)/2 faceFrame.ROI(2) + faceFrame.ROI(4)/2]; 
-               
-                head_depth = depthFrame(round(faceFrame.FacePointType_Nose.Position(1)), round(faceFrame.FacePointType_Nose.Position(2))); 
-                z = double(head_depth) * 10^(-3); %/ screen.pixelSize(1);
-                x = (z*(head_position(1)))/Dparam.fx;
-                y = (z*(head_position(2)))/Dparam.fy;
-                viewer_loc = [x y -z];
-                viewer_loc_buffer(:, buffer_ptr) = viewer_loc;
-                buffer_ptr = buffer_ptr + 1;
-                viewer_loc_filtered = jitter_stabilization(viewer_loc_buffer);
-                uv_filt = [-Dparam.fx *(viewer_loc_filtered(1)/viewer_loc_filtered(3)) -Dparam.fy *(viewer_loc_filtered(2)/viewer_loc_filtered(3))];
-                
-                
-                if i > 1
-                    delta_x = x - prev_x;
-                    delta_y(i) = y - prev_y;
-                    delta_z(i) = z - prev_z;
-                    %Draw depth image
-                    %cla;
-                    subplot(2,2,1);
-                    imagesc(depthFrame);
-                    colormap(gray(65536));
-                    axis image;
-                    hold on;
-                    title('Raw data');
-                   
-                    plot_x_raw(:, i) = [head_position(1) previous_point_raw(1)];
-                    plot_y_raw(:, i) = [head_position(2) previous_point_raw(2)];
-                    line(plot_x_raw, plot_y_raw, 'Color', 'b');
-                    
-                    
-                    %Draw depth image
-                    subplot(2,2,2);
-                    imagesc(depthFrame);
-                    colormap(gray(65536));
-                    axis image;
-                    hold on;
-                    title('Filtered data');
-                     
-                    plot_x_filt(:, i) = [uv_filt(1) previous_point_filt(1)];
-                    plot_y_filt(:, i) = [uv_filt(2) previous_point_filt(2)];
-                    plot(plot_x_filt, plot_y_filt, 'Color', 'b');
-                    subplot(2,2,3);
-                    line(plot_len_x, delta_x, 'Color', 'r');
-                    
-                    drawnow limitrate;
-                end
-                %Draw head pos
-                %plot(head_position(1), head_position(2), '.g', 'MarkerSize', 20);
-               
-                
-                if buffer_ptr == 6
-                    buffer_ptr = 1;
-                end
-                previous_point_raw = head_position;
-                previous_point_filt = uv_filt;
-                prev_x = x;
-                prev_y = y;
-                prev_z = z;
-                
-            end
+        subplot(2,2,3);
+        UpdatePlot('Raw motion', plot_len_x(1:i), delta_xyz(:, 1:i)');
+
+        subplot(2,2,4);
+        UpdatePlot('Filtered motion', plot_len_x(1:i), delta_xyz_filt(:, 1:i)');
+
+        drawnow;
+        
+
+        if buffer_ptr == buffer_length + 1
+            buffer_ptr = 1;
         end
-        %drawnow;
-        
+        previous_point_raw = head_position;
+        previous_point_filt = uv_filt;
+        previous_depth = head_depth;
     end
-   %drawnow();   
+    
 end
-
+delete(h);
 %Close Kinect
-hd.KinectClose();
+%hd.KinectClose();
 clear mex; %free mex/static memory
 
 %% Alternative head-tracking system using Kinect  - Task 2.8
@@ -563,4 +511,125 @@ function  Rz = rotZ(angle) %in degrees
 Rz = [cosd(angle)  -sind(angle) 0; ...
      sind(angle) cosd(angle) 0; ...
       0 0 1];
+end
+
+function UpdateImage(TitleName, CData, pts)
+
+    % Function for faster display refresh:
+
+    % only update 'CData' on successive image calls
+
+    % (does not update title or change resolution!)
+
+
+
+    % First draw call
+
+    if ~isappdata(gca,'imageHandle')
+
+        imageHandle = imagesc(CData);
+        colormap(gray(65536));
+        axis image;
+
+        title(TitleName);
+
+        ax = gca; %Get axis handle
+
+        ax.Color = 'k';
+
+        ax.GridColor = 'w';
+        
+        set(ax, 'XColor', 'black'); set(ax, 'YColor', 'black');
+
+        setappdata(gca,'imageHandle',imageHandle);
+
+        hold on;
+
+        plotHandle = plot(pts(:,1), pts(:,2), '-', 'MarkerSize', 20);
+        
+        setappdata(gca,'plotHandle', plotHandle);
+
+        hold off;
+
+    % Update CData only
+
+    else
+
+        imageHandle = getappdata(gca,'imageHandle');
+
+        set(imageHandle,'CData',CData);
+
+
+
+        plotHandle = getappdata(gca,'plotHandle');
+
+        set(plotHandle,'XData',pts(:,1));
+
+        set(plotHandle,'YData',pts(:,2));
+
+    end
+
+end
+
+function UpdatePlot(TitleName, pts_x, pts_y)
+
+    % Function for faster display refresh:
+
+    % only update 'CData' on successive image calls
+
+    % (does not update title or change resolution!)
+    
+
+
+    % First draw call
+
+    if ~isappdata(gca,'plotHandle')
+        
+        title(TitleName);
+
+        ax = gca; %Get axis handle
+        
+        ax.Color = 'w';
+
+        ax.GridColor = 'k';
+        xlim([1 180]); ylim([-0.6 0.6]);
+        
+        set(ax, 'XColor', 'black'); set(ax, 'YColor', 'black');
+        
+
+        hold on;
+        
+
+        plotHandle1 = plot(pts_x, pts_y(:, 1), '-r');
+        setappdata(gca,'plotHandle1', plotHandle1);
+        
+        plotHandle2 = plot(pts_x, pts_y(:, 2), '-g');
+        setappdata(gca,'plotHandle2', plotHandle2);
+        
+        plotHandle3 = plot(pts_x, pts_y(:, 3), '-b');
+        setappdata(gca,'plotHandle3', plotHandle3);
+        %legend('\Deltax', '\Deltay', '\Deltaz-0.5');
+        hold off;
+
+    % Update CData only
+
+    else
+        plotHandle1 = getappdata(gca,'plotHandle1');
+
+        set(plotHandle1,'XData',pts_x);
+        set(plotHandle1,'YData',pts_y(:,1));
+        
+        plotHandle2 = getappdata(gca,'plotHandle2');
+        
+        set(plotHandle2,'XData',pts_x);
+        set(plotHandle2,'YData',pts_y(:,2));
+        
+        plotHandle3 = getappdata(gca,'plotHandle3');
+        
+        set(plotHandle3,'XData',pts_x);
+        set(plotHandle3,'YData',pts_y(:,3));
+        
+
+    end
+
 end
