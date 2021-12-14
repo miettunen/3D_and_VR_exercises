@@ -7,13 +7,13 @@
 % Make sure it runs without errors after unzipping
 %
 % Group members:
-% Additional tasks completed (2.4, 2.5, 2.6, 2.7, 2.8):
+% Additional tasks completed (2.4, 2.5, 2.6, 2.7, 2.8): 2.4, 2.5, 2.6, 2.7
 %
 % The tracking system and image rendering should run in real-time (> 1 fps)
 %--------------------------------------------------------------------------
 %% 
 clear;
-% LW3_Demo
+%LW3_Demo
 %% Model creation - Task 2.1
 clear;
 close all;
@@ -159,7 +159,7 @@ XYZ = scene{1}.vertices;
 uv = Project3DTo2D(XYZ, screen.K, viewer.R, viewer.T);
 
 scene_sorted = sort_models(scene, viewer.R, viewer.T);
-
+figure(2);
 for(k=1:length(scene))
     
     %Project
@@ -245,6 +245,7 @@ for(k=1:length(scene))
 end
 
 %% Changing viewpoint - Task 2.3
+
 screen_size = [0.596, 0.335];    % päätalo
 screen_res = [2556 1440];
 
@@ -264,15 +265,15 @@ screen.coord3D = [screen_size(1)/2, screen_size(1)/2 -screen_size(1)/2 -screen_s
                   0  screen_size(2) screen_size(2) 0; ... %Y
                   0 0 0 0];    %Z
 
-x1 = linspace(0, 0.3, 20);
-x2 = linspace(0.3, -0.3, 40);
+x1 = linspace(0, 0.3, 10);
+x2 = linspace(0.3, -0.3, 20);
 x = [x1 x2];
 viewer_location = [ 0.5, screen_size(2)/2, -dist_from_screen]; % [X,Y,Z]
-f = figure;
+f1 = figure(3);
 for i=1:length(x)
-    if ishandle(f)
-        clf(f);
-        hold on;
+    if ishandle(f1)
+        clf(f1);
+        
         viewer_location = [ x(i), screen_size(2)/2, -dist_from_screen]; % [X,Y,Z]
         viewer_R = eye(3);
         viewer_T = -viewer.Location*viewer_R;
@@ -280,7 +281,7 @@ for i=1:length(x)
         for k=1:length(scene)
             change_viewpoint(scene_sorted{k}, viewer_location, screen);
         end
-        drawnow();
+        drawnow limitrate;
     end
 end
 
@@ -333,19 +334,19 @@ points_filt_y = zeros(1, length(depthFrames));
 plot_len_x = 1:185;
 
 
-viewer_loc_buffer = zeros(3,5);
+viewer_loc_buffer = zeros(3,2);
 buffer_length = length(viewer_loc_buffer);
 buffer_ptr = 1;
 
 previous_point_raw = [0 0];
 previous_point_filt = [0 0];
 
-h = figure(1);
+h = figure(4);
 previous_depth = 0;
 img = depthFrames(1);
 img_frame = img{1};
 img_size = size(img_frame);
-
+format = '%.2f';
 for i=1:length(depthFrames)
     if(ishandle(h))
   
@@ -359,14 +360,8 @@ for i=1:length(depthFrames)
 
         %Draw face tracking data:
         frameCell = struct2cell(faceFrame);
-
-        head_position = [faceFrame.ROI(1) + faceFrame.ROI(3)/2 faceFrame.ROI(2) + faceFrame.ROI(4)/2]; 
-        
-        head_depth = depthFrame(round(faceFrame.FacePointType_Nose.Position(1)), round(faceFrame.FacePointType_Nose.Position(2)));
-        
-        if head_depth == 0
-            head_depth = previous_depth;      
-        end
+        head_position = [faceFrame.ROI(1) + faceFrame.ROI(3)/2 faceFrame.ROI(2) + faceFrame.ROI(4)/2];        
+        head_depth = depthFrame(round(faceFrame.FacePointType_Nose.Position(2)), round(faceFrame.FacePointType_Nose.Position(1)));
         
         z = double(head_depth) * 10^(-3); %/ screen.pixelSize(1);
         x = (z*(head_position(1)))/Dparam.fx;
@@ -379,10 +374,9 @@ for i=1:length(depthFrames)
         viewer_loc_filtered = jitter_stabilization(viewer_loc_buffer);
         uv_filt = [-Dparam.fx *(viewer_loc_filtered(1)/viewer_loc_filtered(3)) -Dparam.fy *(viewer_loc_filtered(2)/viewer_loc_filtered(3))];
         
-        image_center = [round(img_size(1)/2) round(img_size(2)/2)];
+        image_center = [round(img_size(2)/2) round(img_size(1)/2)];
         world_origo = [(z*(image_center(1)))/Dparam.fx (z*(image_center(2)))/Dparam.fy];
         
-
         
         delta_xyz(:, i) = [x-world_origo(1) y-world_origo(2) -z + 0.5]';
         delta_xyz_filt(:, i) = [viewer_loc_filtered(1)-world_origo(1) viewer_loc_filtered(2)-world_origo(2) viewer_loc_filtered(3)+0.5]';
@@ -394,9 +388,11 @@ for i=1:length(depthFrames)
 
         %Draw depth image
         subplot(2,2,1);
+        title({['Task 2.4 & 2.6'] ['[X, Y, Z]=[',num2str(x-world_origo(1), format), ',',num2str(-(y-world_origo(2)), format), ',', num2str(-z, format),'] [m]'] }); %#ok<NBRAK>
         UpdateImage('Raw data', depthFrame, [points_raw_x(1:i); points_raw_y(1:i)]');
 
         subplot(2,2,2);
+        title({['Task 2.4 & 2.6'] ['[X, Y, Z]=[',num2str(viewer_loc_filtered(1)-world_origo(1), format), ',',num2str(-(viewer_loc_filtered(2)-world_origo(2)), format), ',', num2str(viewer_loc_filtered(3), format),'] [m]'] });
         UpdateImage('Filtered data', depthFrame, [points_filt_x(1:i); points_filt_y(1:i)]');
 
         subplot(2,2,3);
@@ -433,7 +429,7 @@ screen.K = [screen.f(1), 0, screen.pp(1); ...
 
 
 [rendered_image, finished_zbuffer] = z_buffer(scene, viewer.Location, screen);
-
+figure(5);
 for(k=1:length(scene))
     
     %Project
@@ -493,76 +489,6 @@ for(k=1:length(scene))
     ylim([0,screen_res(2)]);
     
 end
-
-%% Alternative head-tracking system using Kinect  - Task 2.8
-%Add Kinect lib
-addpath('./KinectLib/');
-%Load calibration data
-load KinectCalibData.mat;
-%Depth map resolution
-nRowsD = 424;
-nColsD = 512;
-%Depth camera calibration matrix (intrinsics)
-KD = [Dparam.fx, 0, Dparam.cx; ...
-       0, Dparam.fy, Dparam.cy; ...
-       0, 0, 1];
-
-% Kinect stream options:
-%   Option 0 --> Colour                 
-%   Option 1 --> Depth                  
-%   Option 2 --> IR                     
-%   Option 3 --> Colour & Depth        
-%   Option 4 --> Colour & IR           
-%   Option 5 --> Depth & IR            
-%   Option 6 --> Colour & Depth & IR    
-%   Option 7 --> Body Track             
-%   Option 8 --> Depth & Face Track 
-
-option = 3;
-
-%Init Kinect:
-hd = KinectInterface(option);
-hd = hd.KinectInit();
-
-%Get Kinect data
-h = figure;
-while(ishandle(h)) %loop until figure is closed
-    
-    %Grab data
-    hd = hd.KinectGetData();
-    colorFrame = hd.colourImg;
-    depthFrame = hd.depthImg;
-
-    [colorFrame, depthFrame] = KinectGetData(handle);
-    
-    %If data is available
-    if(~isempty(colorFrame) && ~isempty(depthFrame))
-    
-        %Draw depth image
-        cla;
-        subplot(121)
-        imagesc(colorFrame);
-        axis image;
-        
-        subplot(122)
-        imagesc(depthFrame);
-        colormap(gray(65536));
-        axis image;
-        
-        
-        %Your code...
-    
-    
-    
-    end
-    
-    drawnow();
-    
-end
-%Close Kinect
-hd.KinectClose();
-clear mex; %free mex/static memory
-
 
 %--------------------------------------------------------------------------
 %Functions
