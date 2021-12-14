@@ -1,4 +1,4 @@
-function [] = z_buffer(scene, viewer_location, screen)
+function [rendered, z_buffer] = z_buffer(scene, viewer_location, screen)
     %Viewer properties:       
     viewer = [];
     %Viewer's pose
@@ -17,82 +17,59 @@ function [] = z_buffer(scene, viewer_location, screen)
     screen.K = [screen.f(1), 0, screen.pp(1); ...
                0, screen.f(2), screen.pp(2); ...
                0, 0, 1];
-    [m, n] = screen.res;
            
-    z_buffer = double.empty(m,n);
-    z_buffer(:,:) = realmax;
+    z_buffer = zeros(screen.res(2),screen.res(1));
+    z_buffer(:,:) = 1;
     
-    rendered = zeros(m,n);
+    rendered = zeros(screen.res(2),screen.res(1),3);
     
     for k = 1:length(scene)
         model = scene{k};
         for c = 1:length(model.connectivity)
-            points = model.vertices(model.connectivity(c));
-            uv = Project3DTo2D(XYZ, screen.K, viewer.R, viewer.T);
-            bounding_box = [min(uv(1,:), [], 'all') ...
-                min(uv(2,:), [], 'all') ...
-                max(uv(1,:), [], 'all') ...
-                max(uv(2,:), [], 'all')];
+            points = model.vertices(:,model.connectivity(:,c));
+            
+            uv = Project3DTo2D(points, screen.K, viewer.R, viewer.T);
+            xyz_proj = viewer.R*points+viewer.T;
+            z_values = xyz_proj(3,:);
+            
+            
+            bounding_box = int64([min(uv(1,:), [], 'all')-1 ...
+                min(uv(2,:), [], 'all')-1 ...
+                max(uv(1,:), [], 'all')+1 ...
+                max(uv(2,:), [], 'all')+1]);
+            xv = uv(1,:);
+            yv = uv(2,:);
+            xq = double(bounding_box(1)):1:double(bounding_box(3));
+            yq = double(bounding_box(2)):1:double(bounding_box(4));
+            
+            [xq, yq] = meshgrid(xq,yq);
+            xq = reshape(xq.',1,[]);
+            yq = reshape(yq.',1,[]);
+            
+            
+            test = int64([min(xq, [], 'all')-1 ...
+                min(yq, [], 'all')-1 ...
+                max(xq, [], 'all')+1 ...
+                max(yq, [], 'all')+1]);
+            
+            
+            in = inpolygon(xq,yq,xv,yv);
+            surface_pixels = cat(1, xq(in), yq(in));
+            
+            
+            
+            [m,n] = size(surface_pixels);
+            for i = 1:n
+                pixel = surface_pixels(:,i);
+                w1 = ((uv(2,2)-uv(2,3))*(pixel(1)-uv(1,3)) + (uv(1,3)-uv(1,2))*(pixel(2)-uv(2,3))) / ((uv(2,2)-uv(2,3))*(uv(1,1)-uv(1,3)) + (uv(1,3)-uv(1,2))*(uv(2,1)-uv(2,3)));
+                w2 = ((uv(2,3)-uv(2,1))*(pixel(1)-uv(1,3)) + (uv(1,1)-uv(1,3))*(pixel(2)-uv(2,3))) / ((uv(2,2)-uv(2,3))*(uv(1,1)-uv(1,3)) + (uv(1,3)-uv(1,2))*(uv(2,1)-uv(2,3)));
+                w3 = 1-w1-w2;
+                pixel_z = z_values(1) * w1 + z_values(2) * w2 + z_values(3) * w3;
+                if pixel_z < z_buffer(pixel(2), pixel(1))
+                    rendered(pixel(2), pixel(1), :) = model.color(:,c);
+                    z_buffer(pixel(2), pixel(1)) = pixel_z;
+                end          
+            end
+        end
     end
-           
-           
-           
-           
-           
-    XYZ = model.vertices;
-    screen.uv = Project3DTo2D(XYZ, screen.K, viewer.R, viewer.T);
-    model.connectivity = sort_polygons(model.vertices, model.connectivity, viewer.R, viewer.T);
-    %Draw scene
-    subplot(1,2,1);
-    for c = 1:size(model.connectivity, 2)
-        patch('Faces',[1 2 3], ...
-            'Vertices',[model.vertices(:,model.connectivity(1, c)), ...
-            model.vertices(:,model.connectivity(2, c)), ...
-            model.vertices(:,model.connectivity(3, c))]', ...
-            'FaceColor', model.color(:,c), ...
-            'EdgeColor', 'none');
-        
-        hold on;
-    end
     
-    %Draw 3D screen
-    line([screen.coord3D(1,:), screen.coord3D(1,1)], ...
-         [screen.coord3D(2,:), screen.coord3D(2,1)], ...
-         [screen.coord3D(3,:), screen.coord3D(3,1)], ...
-         'Color',[0,0,0.3], 'LineWidth', 2);
-    
-    %Draw axes - sensor origin
-    DrawAxes(eye(3), [0,0,0], 1 ,'Sensor Origin', 0.01);
-    
-    %Draw viewer
-    DrawAxes(viewer.Orientation, viewer.Location, 0.2 ,'Viewer', 0.01);
-    
-    %Set title, axes format, limits, etc
-    title('Scene');
-    axis image;
-    grid on;
-    view(33,22);
-    xlim([-1.2,1.2]); ylim([-1.2,1.2]); zlim([-1.2,1.2]);
-    xlabel('X [m]'); ylabel('Y [m]'); zlabel('Z [m]');
-    
-    
-    %Draw projected scene - virtual display
-    subplot(1,2,2)
-    plot(screen.uv(1,:), screen.uv(2,:), '.', 'MarkerSize', 20);
-    set(gca, 'YDir', 'reverse');
-    hold on;
-    for c = 1:size(model.connectivity, 2)
-        patch(  'Faces', [1 2 3], ...
-            'Vertices', [screen.uv(:,model.connectivity(1, c)), ...
-            screen.uv(:,model.connectivity(2, c)), ...
-            screen.uv(:,model.connectivity(3, c))]', ...
-            'FaceColor', model.color(:,c), ...
-            'EdgeColor', 'none');
-    end
-    format = '%.2f';
-    title(['Task 2.3  [X,Y,Z]=[', num2str(viewer_location(1), format), ' ', num2str(viewer_location(2), format), ' ', num2str(viewer_location(3), format),']']);
-    axis image;
-    xlim([0,screen.res(1)]);
-    ylim([0,screen.res(2)]);
-    
-end
